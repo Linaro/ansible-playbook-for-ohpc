@@ -1,0 +1,177 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/common/tasks/main.yml
+#
+
+#
+# We need to install some basic packages to compensate dependency problem caused by
+# combination of the package installation.
+#
+- name: Install basic packages to perfrom OpenHPC installation
+  yum: name={{ item }} state=latest
+  with_items:
+    - perl
+    - dhcp
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- block:
+  - name: Enable OpenHPC Intel Arch repository for local use
+    yum:
+      name: "{{ ohpc_release_rpm_intel }}"
+      state: present
+    when:
+      ( inventory_hostname in groups[nt_sms] ) or
+      ( inventory_hostname in groups[nt_devnodes] ) or
+      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+  when:
+    - ansible_machine == "x86_64"
+
+- block:
+  - name: Enable OpenHPC ARM Arch repository for local use
+    yum:
+      name: "{{ ohpc_release_rpm_arm }}"
+      state: present
+    when:  
+      ( inventory_hostname in groups[nt_sms] ) ) or
+      ( inventory_hostname in groups[nt_devnodes] ) or
+      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+  when:
+    - ansible_machine == "aarch64"
+
+# Disable firewall 
+#systemctl disable firewalld
+- name: Disable firewall
+  service: name=firewalld enabled=no
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#systemctl stop firewalld
+- name: Stop firewall
+  service: name=firewalld state=stopped
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- name: Add the /etc/hosts entry for system management server
+  lineinfile:
+    create: yes
+    path: /etc/hosts
+    state: present
+    backrefs: no
+    regexp: "^{{ sms_ip }}{{ '\t' }}{{ sms_name }} {{ sms_name }}{{ '.' }}{{ internal_domain_name }} # {{ sms_name }}$"
+    line: "{{ sms_ip }}{{ '\t' }}{{ sms_name }} {{ sms_name }}{{ '.' }}{{ internal_domain_name }} # {{ sms_name }}"
+  with_items:
+    - "{{ compute_nodes }}"
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- name: Add /etc/hosts entries for computing nodes
+  lineinfile:
+    create: yes
+    path: /etc/hosts
+    state: present
+    backrefs: no
+    regexp: "^{{ item.c_ip }}{{ '\t' }}{{ item.c_name }} {{ item.c_name }}{{ '.' }}{{ internal_domain_name }} # {{item.c_name}}$"
+    line: "{{ item.c_ip }}{{ '\t' }}{{ item.c_name }} {{ item.c_name }}{{ '.' }}{{ internal_domain_name }} # {{item.c_name}}"
+  with_items:
+    - "{{ compute_nodes }}"
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#
+# SE Linux
+#
+# According to OpenHPC install guide, we should make SELinux disabled(not permissive).
+#-- Cited from "2 Install Base Operating System (BOS)"
+# While it is theoretically possible to enable SELinux on a cluster provisioned with 
+# Warewulf, doing so is beyond the scope of this document. 
+# Even the use of permissive mode can be problematic and we therefore
+# recommend disabling SELinux on the master SMS host.
+#--
+
+- name: "UNSET SELinux enforcement"
+  command: setenforce 0
+  register: result
+  failed_when: result.rc not in [0, 1]
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- name: "Making SELinux disabled"
+  lineinfile:
+    path: /etc/selinux/config
+    state: present
+    backrefs: yes
+    regexp: '^\s*SELINUX\s*=.*$'
+    line: "SELINUX=disabled"
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#
+# SSH Settings for the computing cluster between sms and computing nodes.
+# It will be used by psdsh, mrsh and so on.
+#
+- name: Touch /root/.ssh/config file
+  file:
+    path: "{{ ansible_env.HOME }}/.ssh/config"
+    state: touch
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- name: "Add the ssh configurations for root login to cnodes and sms"
+  blockinfile:
+    dest: "{{ ansible_env.HOME }}/.ssh/config"
+    content:
+          "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n"
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) ) 
+
+- name: "Add the ssh configurations for ansible user login to cnodes and sms"
+  blockinfile:
+    dest: "{{ ansible_home }}/.ssh/config"
+    content:
+      "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n"
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] )  and ( enable_warewulf == false ) )
+
+
+
+

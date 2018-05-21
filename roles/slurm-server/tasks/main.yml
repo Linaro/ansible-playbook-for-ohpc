@@ -1,0 +1,445 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/slurm-server/tasks/main.yml
+#
+
+# -------------------------------------------------------------
+# Add resource management services on master node (Section 3.4)
+# -------------------------------------------------------------
+#yum -y groupinstall ohpc-slurm-server
+- name: Install ohpc-slurm-server on master
+  yum: name={{ item }} state=latest
+  with_items:
+    - ohpc-slurm-server
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+# Enable slurm pam module
+#echo "account    required     pam_slurm.so" >> $CHROOT/etc/pam.d/sshd
+- name: Enable slurm pam module for computing node images on master
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/pam.d/sshd"
+    state: present
+    backrefs: no
+    regexp: '^account    required     pam_slurm\.so$'
+    line: "account    required     pam_slurm.so"
+  when:
+    - inventory_hostname in groups[nt_sms] 
+    - enable_warewulf == true
+
+- name: Enable slurm pam module on a computing node
+  lineinfile:
+    path: "/etc/pam.d/sshd"
+    state: present
+    backrefs: no
+    regexp: '^account    required     pam_slurm\.so$'
+    line: "account    required     pam_slurm.so"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#if [[ ${enable_clustershell} -eq 1 ]];then
+- block:
+#     # Install clustershell
+#     yum -y install clustershell-ohpc
+  - name: Install clustershell on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - clustershell-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     cd /etc/clustershell/groups.d
+#     mv local.cfg local.cfg.orig
+  - name: Backup /etc/clustershell/groups.d/local.cfg on master
+    command: mv /etc/clustershell/groups.d/local.cfg /etc/clustershell/groups.d/local.cfg.orig
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "adm: ${sms_name}" > local.cfg
+  - name: Remove /etc/clustershell/groups.d/local.cfg on master
+    file: path=/etc/clustershell/groups.d/local.cfg state=absent
+
+  - name: Touch /etc/clustershell/groups.d/local.cfg on master
+    file: path=/etc/clustershell/groups.d/local.cfg state=touch
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: "Add administrator to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      create: yes
+      regexp: '^adm{{ d_colon }} {{sms_name}}$'
+      line: "adm{{ d_colon }} {{sms_name}}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "compute: ${compute_prefix}[1-${num_computes}]" >> local.cfg
+  - name: "Add computing nodes to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      regexp: '^compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]$'
+      line: "compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "all: @adm,@compute" >> local.cfg
+  - name: "Add all object definition to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      regexp: '^all{{ d_colon }} @adm,@compute$'
+      line: "all{{ d_colon }} @adm,@compute"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_clustershell == true
+#fi
+
+#if [[ ${enable_mrsh} -eq 1 ]];then
+- block:
+#     # Install mrsh
+#     yum -y install mrsh-ohpc mrsh-rsh-compat-ohpc
+  - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - mrsh-ohpc
+      - mrsh-rsh-compat-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     yum -y --installroot=$CHROOT install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc
+  - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc for computing images on master
+    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+    with_items:
+      - mrsh-ohpc
+      - mrsh-rsh-compat-ohpc
+      - mrsh-server-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc on a computing node
+    yum: name={{ item }}  state=latest
+    with_items:
+      - mrsh-ohpc
+      - mrsh-rsh-compat-ohpc
+      - mrsh-server-ohpc
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     echo "mshell          21212/tcp                  # mrshd" >> /etc/services
+  - name: Identify mshell in services file on sms and a computing node and a development node
+    lineinfile:
+      path: /etc/services
+      state: present
+      backrefs: no
+      regexp: '^mshell          21212/tcp                 # mrshd$'
+      line: "mshell          21212/tcp                 # mrshd"
+    when:
+      ( inventory_hostname in groups[nt_sms] ) or
+      ( inventory_hostname in groups[nt_devnodes] ) or
+      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#     echo "mlogin            541/tcp                  # mrlogind" >> /etc/services
+  - name: Identify mlogin in services file on sms and a computing node and a development node
+    lineinfile:
+      path: /etc/services
+      state: present
+      backrefs: no
+      regexp: '^mlogin            541/tcp                 # mrlogind$'
+      line: "mlogin            541/tcp                 # mrlogind"
+    when:
+      ( inventory_hostname in groups[nt_sms] ) or
+      ( inventory_hostname in groups[nt_devnodes] ) or
+      ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#     chroot $CHROOT systemctl enable xinetd
+  - name: Enable xinetd for computing images on master
+    command: chroot "{{ compute_chroot_loc }}" systemctl enable xinetd
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Enable xinetd for computing on a computing node
+    command: systemctl enable xinetd
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+  when:
+    - enable_mrsh == true
+#fi
+
+#if [[ ${enable_genders} -eq 1 ]];then
+- block:
+
+#     # Install genders
+#     yum -y install genders-ohpc
+  - name: Install genders-ohpc on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - genders-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo -e "${sms_name}\tsms" > /etc/genders
+  - name: Generate a sample genders file(Add file) on master
+    lineinfile:
+      path: /etc/genders
+      state: present
+      backrefs: no
+      create: yes
+      regexp: "^{{ sms_name }}{{ '\t' }}sms$"
+      line: "{{ sms_name }}\tsms"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     for ((i=0; i<$num_computes; i++)) ; do
+#        echo -e "${c_name[$i]}\tcompute,bmc=${c_bmc[$i]}"
+#     done >> /etc/genders
+  - name: Generate a sample genders file(remove existing line) on master
+    lineinfile:
+      path: /etc/genders
+      backrefs: no
+      state: absent
+      regexp: "^{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}$"
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: Generate a sample genders file(add line) on master
+    lineinfile:
+      path: /etc/genders
+      backrefs: no
+      state: present
+      regexp: "^{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}$"
+      line: "{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}"
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_genders == true
+#fi
+
+# Optionally, enable conman and configure
+#if [[ ${enable_ipmisol} -eq 1 ]];then
+- block:
+#     yum -y install conman-ohpc
+  - name: Install conman-ohpc on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - conman-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     for ((i=0; i<$num_computes; i++)) ; do
+#        echo -n 'CONSOLE name="'${c_name[$i]}'" dev="ipmi:'${c_bmc[$i]}'" '
+#        echo 'ipmiopts="'U:${bmc_username},P:${IPMI_PASSWORD:-undefined},W:solpayloadsize'"'
+#     done >> /etc/conman.conf
+  - name: Generate a sample conman file(remove existing line) on master
+    lineinfile:
+      path: /etc/conman.conf
+      backrefs: no
+      state: absent
+      regexp: '^CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colo\
+n }}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"$'
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: "Generate a sample genders file(Add line) on master"
+    lineinfile:
+      path: /etc/conman.conf
+      backrefs: no
+      state: present
+      regexp: '^CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colo\
+n }}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"$'
+      line: 'CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colon }\
+}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"'
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl enable conman
+  - name: Enable conman on master
+    service: name=conman enabled=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl start conman
+  - name: Start conman on master
+    service: name=conman state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_ipmisol == true
+#fi
+
+# --------------------------------------------------------
+# Configure rsyslog on SMS and computes (Section 3.7.4.10)
+# --------------------------------------------------------
+#echo "*.* @${sms_ip}:514" >> $CHROOT/etc/rsyslog.conf
+- name: Define computing node forwarding destination for computing node images on master
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/rsyslog.conf"
+    state: present
+    backrefs: no
+    regexp: '^\*\.\* @{{ sms_ip }}{{ d_colon }}514$'
+    line: "*.* @{{ sms_ip }}{{ d_colon }}514"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Define computing node forwarding destination on a computing node
+  lineinfile:
+    path: "/etc/rsyslog.conf"
+    state: present
+    backrefs: no
+    regexp: '^\*\.\* @{{ sms_ip }}{{ d_colon }}514$'
+    line: "*.* @{{ sms_ip }}{{ d_colon }}514"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#perl -pi -e "s/^\*\.info/\\#\*\.info/" $CHROOT/etc/rsyslog.conf
+#perl -pi -e "s/^authpriv/\\#authpriv/" $CHROOT/etc/rsyslog.conf
+#perl -pi -e "s/^mail/\\#mail/" $CHROOT/etc/rsyslog.conf
+#perl -pi -e "s/^cron/\\#cron/" $CHROOT/etc/rsyslog.conf
+#perl -pi -e "s/^uucp/\\#uucp/" $CHROOT/etc/rsyslog.conf
+- name: Disable most local logging on computes for info on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='^\*\.info' replace="#*.info" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Disable most local logging on computes for authpriv on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='^authpriv' replace="#authpriv" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Disable most local logging on computes for mail on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='^mail' replace="#mail" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Disable most local logging on computes for cron on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='^cron' replace="#cron" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Disable most local logging on computes for uucp on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='^uucp' replace="#uucp" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Disable most local logging on computes for info on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^\*\.info' replace="#*.info" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for authpriv on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^authpriv' replace="#authpriv" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for mail on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^mail' replace="#mail" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for cron on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^cron' replace="#cron" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for uucp on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^uucp' replace="#uucp" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#perl -pi -e "s/\\#\\\$ModLoad imudp/\\\$ModLoad imudp/" /etc/rsyslog.conf
+- name: Configure to receive messages module of rsyslog for computing images on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='#\$ModLoad imudp' replace="$ModLoad imudp" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms] 
+    - enable_warewulf == true
+
+- name: Configure to receive messages module of rsyslog on a computing node
+  replace: dest=/etc/rsyslog.conf regexp='#\$ModLoad imudp' replace="$ModLoad imudp" backup=yes
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+#perl -pi -e "s/\\#\\\$UDPServerRun 514/\\\$UDPServerRun 514/" /etc/rsyslog.conf
+- name: Configure to receive messages port for rsyslog for computing images on master
+  replace: dest="{{ compute_chroot_loc }}/etc/rsyslog.conf" regexp='#\$UDPServerRun 514' replace="$UDPServerRun 514" backup=yes
+  when:
+    - inventory_hostname in groups[nt_sms] 
+    - enable_warewulf == true
+
+- name: Configure to receive messages port for rsyslog on a computing node
+  replace: dest=/etc/rsyslog.conf regexp='#\$UDPServerRun 514' replace="$UDPServerRun 514" backup=yes
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+#systemctl restart rsyslog
+- name: Restart rsyslog on master
+  service: name=rsyslog state=restarted
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Restart rsyslog on a computing node
+  service: name=rsyslog state=restarted
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+
+

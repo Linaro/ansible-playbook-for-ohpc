@@ -1,0 +1,103 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/nfs/tasks/main.yml
+#
+
+#echo "/home *(rw,no_subtree_check,fsid=10,no_root_squash)" >> /etc/exports
+- name: Export /home on master
+  lineinfile:
+    path: /etc/exports
+    state: present
+    backrefs: no
+    regexp: '^/home \*\(rw,no_subtree_check,fsid=10,no_root_squash\)$'
+    line: "/home *(rw,no_subtree_check,fsid=10,no_root_squash)"
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#echo "/opt/ohpc/pub *(ro,no_subtree_check,fsid=11)" >> /etc/exports
+- name: Export /opt/ohpc/pub on master
+  lineinfile:
+    path: /etc/exports
+    state: present
+    backrefs: no
+    regexp: '^/opt/ohpc/pub \*\(ro,no_subtree_check,fsid=11\)$'
+    line: "/opt/ohpc/pub *(ro,no_subtree_check,fsid=11)"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_nfs_ohpc == true
+
+#exportfs -a
+- name: exportfs reload on master
+  command: exportfs -a
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#systemctl restart nfs
+- name: Restart nfs on a computing node
+  service: name=nfs state=restarted
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+
+#systemctl enable nfs-server
+- name: enable nfs server on master
+  service: name=nfs-server enabled=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#systemctl start nfs-server
+- name: start nfs server on master
+  service: name=nfs-server state=started
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#echo "${sms_ip}:/home /home nfs nfsvers=3,rsize=1024,wsize=1024,cto 0 0" >> $CHROOT/etc/fstab
+- name: Add NFS client to mount /home on a computing node
+  mount:
+    name: "/home"
+    src: "{{ sms_ip }}{{ d_colon }}/home"
+    fstype: nfs
+    opts: "rsize=1024,wsize=1024,cto"
+    state: present
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+
+#echo "${sms_ip}:/opt/ohpc/pub /opt/ohpc/pub nfs nfsvers=3 0 0" >> $CHROOT/etc/fstab
+- name: Add NFS client to mount /opt/ohpc/pub on a computing node
+  mount:
+    name: "/opt/ohpc/pub"
+    src: "{{sms_ip}}{{ d_colon }}/opt/ohpc/pub"
+    fstype: nfs
+    state: present
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_nfs_ohpc == true
+
+- name: NFS client to mount /home on a computing node
+  mount:
+    name: "/home"
+    src: "{{ sms_ip }}{{ d_colon }}/home"
+    fstype: nfs
+    opts: "rsize=1024,wsize=1024,cto"
+    state: mounted
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_nfs_home == true

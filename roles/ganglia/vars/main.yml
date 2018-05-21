@@ -1,0 +1,10 @@
+---
+
+#
+#roles/ganglia/vars/main.yml
+#
+
+#Ganglia
+#
+# Grid Name
+ganglia_grid_name: "MySite"

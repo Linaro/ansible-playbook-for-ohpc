@@ -1,0 +1,9 @@
+---
+
+#
+#roles/lmod/vars/main.yml
+#
+
+# Default MPI development environment
+# ohpc_lmod_mpi_default: "lmod-defaults-gnu-mvapich2-ohpc"
+ohpc_lmod_mpi_default: "lmod-defaults-gnu7-openmpi-ohpc"

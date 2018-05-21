@@ -1,0 +1,63 @@
+#
+# Normal rules
+#
+.*
+*.o
+*.o.*
+*.a
+*.s
+*.ko
+*.so
+*.so.dbg
+*.mod.c
+*.i
+*.lst
+*.symtypes
+*.order
+*.elf
+*.bin
+*.gz
+*.bz2
+*.lzma
+*.patch
+*.gcno
+
+# stgit generated dirs
+patches-*
+
+# quilt's files
+patches
+series
+
+# cscope files
+cscope.*
+ncscope.*
+
+# gnu global files
+GPATH
+GRTAGS
+GSYMS
+GTAGS
+
+*.orig
+*.rej
+*~
+\#*#
+
+*.ini
+*.tgz
+*.tar.gz
+*.tbz
+*.tar.bz2
+*.txz
+*.tar.xz
+*.pyo
+*.pyc
+*.exe
+*.bin
+*.elf
+*.log
+*.retry
+*.swp
+.viminfo
+

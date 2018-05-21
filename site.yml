@@ -1,0 +1,85 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+- hosts: all
+  user: root
+
+  become: yes
+     
+  pre_tasks:
+    - name: Install getent and cut
+      yum:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - glibc-common
+        - coreutils
+
+    - name: Get ssh login user
+      shell: 'getent passwd "{{ansible_ssh_user}}" | cut -d: -f6'
+      register: ansible_home_result
+
+    - name: Set the fact for the other scripts to use
+      set_fact: ansible_home='{{ansible_home_result.stdout}}'
+
+# Todo: Check all.yml
+#      -fail: 
+#       msg: "Error mesage"
+
+  roles:
+    - common
+    - net-eth
+    - net-ib
+    - net-infinipath
+    - kernel
+    - dhcpd
+    - ohpc-base
+    - lmod
+    - slurm-server
+    - nfs
+    - ntp
+    - lustre-client
+    - nagios
+    - ganglia
+    - ipmisol
+    - autotools
+    - valgrind
+    - EasyBuild
+    - spack
+    - hwloc
+    - R
+    - compiler-gnu7
+    - compiler-llvm
+    - compiler-intel
+    - openmpi-gnu7
+    - openmpi3-gnu7
+    - mpich-gnu7
+    - mvapich2-gnu7
+    - openmpi-intel
+    - mpich-intel
+    - mvapich2-intel
+    - impi-intel
+    - perf-tools-gnu7
+    - perf-tools-intel
+    - third-party-libs-gnu7
+    - third-party-libs-intel
+    - imb
+    - warewulf
+    - slurm-client
+    # - booting-computing-nodes/
+

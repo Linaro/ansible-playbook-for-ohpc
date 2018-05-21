@@ -1,0 +1,7 @@
+#
+#network:  {{internal_network}}
+#
+DEVICE={{ cnode_eth_internal }}
+BOOTPROTO=dhcp
+ONBOOT=yes
+NM_CONTROLLED=no

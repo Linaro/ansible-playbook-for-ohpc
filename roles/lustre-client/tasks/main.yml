@@ -1,0 +1,145 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/lustre-client/tasks/main.yml
+#
+
+- block:
+#if [[ ${enable_lustre_client} -eq 1 ]];then
+#     # Install Lustre client on master
+#     yum -y install lustre-client-ohpc lustre-client-ohpc-modules
+  - name: install Lustre client on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - lustre-client-ohpc
+      - lustre-client-ohpc-modules
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     # Enable lustre in a computing node
+#     yum -y --installroot=$CHROOT install lustre-client-ohpc lustre-client-ohpc-modules
+  - name: Install Lustre-client for computing node images on master
+    yum: name={{ item }}  installroot="{{ compute_chroot_loc }}" state=latest
+    with_items:
+      - lustre-client-ohpc
+      - lustre-client-ohpc-modules
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Install Lustre-client on a computing node
+    yum: name={{ item }}  state=latest
+    with_items:
+      - lustre-client-ohpc
+      - lustre-client-ohpc-modules
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     mkdir $CHROOT/mnt/lustre
+  - name: lustre mkdir for computing node images on master
+    file: path="{{ compute_chroot_loc }}/mnt/lustre" state=directory
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: lustre mkdir on a computing node
+    file: path=/mnt/lustre state=directory
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     echo "${mgs_fs_name} /mnt/lustre lustre defaults,_netdev,localflock 0 0" >> $CHROOT/etc/fstab
+  - name: configure fstab of lustre for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/fstab"
+      state: present
+      backrefs: no
+      regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
+      line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: configure fstab of lustre on a computing node
+    lineinfile:
+      path: "/etc/fstab"
+      state: present
+      backrefs: no
+      regexp: '^{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0$'
+      line: "{{ mgs_fs_name }} /mnt/lustre lustre defaults,_netdev,localflock 0 0"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     # Enable o2ib for Lustre
+#     echo "options lnet networks=o2ib(ib0)" >> /etc/modprobe.d/lustre.conf
+  - name: Enable o2ib for Lustre on master
+    lineinfile:
+      path: /etc/modprobe.d/lustre.conf
+      state: present
+      backrefs: no
+      regexp: '^options lnet networks=o2ib\(ib0\)$'
+      line: "options lnet networks=o2ib(ib0)"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "options lnet networks=o2ib(ib0)" >> $CHROOT/etc/modprobe.d/lustre.conf
+  - name: Enable o2ib for Lustre for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/modprobe.d/lustre.conf"
+      state: present
+      backrefs: no
+      regexp: '^options lnet networks=o2ib\(ib0\)$'
+      line: "options lnet networks=o2ib(ib0)"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Enable o2ib for Lustre on a computing node
+    lineinfile:
+      path: "/etc/modprobe.d/lustre.conf"
+      state: present
+      backrefs: no
+      regexp: '^options lnet networks=o2ib\(ib0\)$'
+      line: "options lnet networks=o2ib(ib0)"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     # mount Lustre client on master
+#     mkdir /mnt/lustre
+  - name: lustre mkdir on master
+    file: path=/mnt/lustre state=directory
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     mount -t lustre -o localflock ${mgs_fs_name} /mnt/lustre
+  - name: mount Lustre client on master
+    mount:
+      name: "/mnt/lustre" 
+      src: "{{ mgs_fs_name }}" 
+      fstype: lustre
+      opts: "localflock" 
+      state: mounted
+    when:
+      - inventory_hostname in groups[nt_sms]
+  when: 
+    enable_lustre_client == true
+#fi

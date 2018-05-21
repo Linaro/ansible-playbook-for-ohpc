@@ -1,0 +1,8 @@
+---
+
+#
+#roles/ntp/vars/main.yml
+#
+
+# Local ntp server for time synchronization
+ntp_server: "192.168.44.11"

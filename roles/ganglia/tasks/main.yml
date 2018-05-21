@@ -1,0 +1,157 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/ganglia/tasks/main.yml
+#
+- block:
+#     # Install Ganglia on master
+#     yum -y groupinstall ohpc-ganglia
+  - name: Install ohpc-ganglia on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - ohpc-ganglia
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     yum -y --installroot=$CHROOT install ganglia-gmond-ohpc
+  - name: Install ganglia-gmond-ohpc for computing image on master
+    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+    with_items:
+      - ganglia-gmond-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Install ganglia-gmond-ohpc on a computing node
+    yum: name={{ item }} state=latest
+    with_items:
+      - ganglia-gmond-ohpc
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     Note: We make the directory for ganglia on sms just in case.
+  - name: Mkdir /etc/ganglia on master
+    file: path="/etc/ganglia" state=directory mode=0755
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     cp /opt/ohpc/pub/examples/ganglia/gmond.conf /etc/ganglia/gmond.conf
+  - name: Copy /opt/ohpc/pub/examples/ganglia/gmond.conf to /etc/ganglia/gmond.conf on master
+    command: cp /opt/ohpc/pub/examples/ganglia/gmond.conf /etc/ganglia/gmond.conf
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      
+#     perl -pi -e "s/<sms>/${sms_name}/" /etc/ganglia/gmond.conf
+  - name: HOSTNAME configuration on master
+    replace: dest=/etc/ganglia/gmond.conf regexp='<sms>' replace="{{ sms_name }}" backup=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     cp /etc/ganglia/gmond.conf $CHROOT/etc/ganglia/gmond.conf
+  - name: Copy ganglia configuration to compute image on master
+    command: cp /etc/ganglia/gmond.conf "{{ compute_chroot_loc }}/etc/ganglia/gmond.conf"
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+#     cp /etc/ganglia/gmond.conf $CHROOT/etc/ganglia/gmond.conf
+  - name: Fetch /etc/ganglia/gmond.conf in sms to a ansible local /tmp
+    fetch:
+      src: /etc/ganglia/gmond.conf
+      dest: /tmp/gmond.conf
+      flat: yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == false
+
+  - name: Copy /tmp/gmond.conf in ansible local to a computing node on master
+    copy: src=/tmp/gmond.conf dest=/etc/ganglia/gmond.conf
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+  - name: Remove /tmp/gmond.conf on ansible local 
+    local_action: file path=/tmp/gmond.conf state=absent
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == false
+
+#     echo "gridname MySite" >> /etc/ganglia/gmetad.conf
+  - name: Set gridname for the cluster on master
+    lineinfile:
+      path: /etc/ganglia/gmetad.conf
+      state: present
+      backrefs: no
+      regexp: '^gridname \"{{ ganglia_grid_name  }}\"$'
+      line: "gridname \"{{ ganglia_grid_name  }}\""
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl enable gmond
+  - name: Enable gmond on master
+    service: name=gmond enabled=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl enable gmetad
+  - name: Enable gmetad on master
+    service: name=gmetad enabled=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl start gmond
+  - name: Start gmond on master
+    service: name=gmond state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl start gmetad
+  - name: Start gmetad on master
+    service: name=gmetad state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     chroot $CHROOT systemctl enable gmond
+  - name: Enable gmond for computing images on master
+    command: chroot "{{ compute_chroot_loc }}" systemctl enable gmond
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Enable gmond on a computing node
+    service: name=gmond enabled=yes
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     systemctl try-restart httpd
+  - name: Restart httpd on master
+    service: name=httpd state=restarted
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_ganglia == true

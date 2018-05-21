@@ -1,0 +1,10 @@
+---
+
+#
+#roles/ipmisol/vars/main.yml
+#
+
+# BMC user credentials for use by IPMI
+bmc_username: "unknown"
+bmc_password: "unknown"
+

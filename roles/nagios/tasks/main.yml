@@ -1,0 +1,292 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/nagios/tasks/main.yml
+#
+
+## Install Nagios on master and vnfs image
+#if [[ ${enable_nagios} -eq 1 ]];then
+- block:
+
+#     yum -y groupinstall ohpc-nagios
+  - name: Install packages Nagios on master
+    yum: name=ohpc-nagios state=latest
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     yum -y --installroot=$CHROOT install nagios-plugins-all-ohpc nrpe-ohpc
+  - name: Install packages Nagios plugins for computing node images on master
+    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+    with_items:
+      - nagios-plugins-all-ohpc
+      - nrpe-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Install packages Nagios plugins on a computing node
+    yum: name={{ item }} state=latest
+    with_items:
+      - nagios-plugins-all-ohpc
+      - nrpe-ohpc
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+          
+#     chroot $CHROOT systemctl enable nrpe
+  - name: enable nrpe for computing node images on master
+    command: chroot "{{ compute_chroot_loc }}" systemctl enable nrpe
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: enable nrpe on a computing node
+    command: systemctl enable nrpe
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     perl -pi -e "s/^allowed_hosts=/# allowed_hosts=/" $CHROOT/etc/nagios/nrpe.cfg
+  - name: Configure NRPE for computing node images on master
+    replace: dest="{{ compute_chroot_loc }}/etc/nagios/nrpe.cfg" regexp='^allowed_hosts=' replace="#allowed_hosts=" backup=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Configure NRPE on a computing node
+    replace: dest="/etc/nagios/nrpe.cfg" regexp='^allowed_hosts=' replace="#allowed_hosts=" backup=yes
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     echo "nrpe 5666/tcp # NRPE"         >> $CHROOT/etc/services
+  - name: Register nrpe service port for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/services"
+      state: present
+      backrefs: no
+      regexp: '^nrpe 5666/tcp # NRPE$'
+      line: "nrpe 5666/tcp # NRPE"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Register nrpe service port on a computing node
+    lineinfile:
+      path: "/etc/services"
+      state: present
+      backrefs: no
+      regexp: '^nrpe 5666/tcp # NRPE$'
+      line: "nrpe 5666/tcp # NRPE"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+          
+#     echo "nrpe : ${sms_ip}  : ALLOW"    >> $CHROOT/etc/hosts.allow
+  - name: Allow nrpe port for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/hosts.allow"
+      state: present
+      backrefs: no
+      regexp: '^nrpe {{ d_colon }} {{sms_ip}}  {{ d_colon }} ALLOW$'
+      line: "nrpe {{ d_colon }} {{sms_ip}}  {{ d_colon }} ALLOW"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Allow nrpe port on a computing node
+    lineinfile:
+      path: "/etc/hosts.allow"
+      state: present
+      backrefs: no
+      regexp: '^nrpe {{ d_colon }} {{sms_ip}}  {{ d_colon }} ALLOW$'
+      line: "nrpe {{ d_colon }} {{sms_ip}}  {{ d_colon }} ALLOW"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#     echo "nrpe : ALL : DENY"            >> $CHROOT/etc/hosts.allow
+  - name: Set the nrpe port access policy for computing nodes on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/hosts.allow"
+      state: present
+      backrefs: no
+      regexp: '^nrpe {{ d_colon }} ALL {{ d_colon }} DENY$'
+      line: "nrpe {{ d_colon }} ALL {{ d_colon }} DENY"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Set the nrpe port access policy on a computing node
+    lineinfile:
+      path: "/etc/hosts.allow"
+      state: present
+      backrefs: no
+      regexp: '^nrpe {{ d_colon }} ALL {{ d_colon }} DENY$'
+      line: "nrpe {{ d_colon }} ALL {{ d_colon }} DENY"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#chroot $CHROOT /usr/sbin/useradd -c "NRPE user for the NRPE service" -d /var/run/nrpe -r -g nrpe \
+# -s /sbin/nologin nrpe
+  - name: Add nrpe user for computing node images on master
+    command: 'chroot {{ compute_chroot_loc }} /usr/sbin/useradd -c "NRPE user for the NRPE service" -d /var/run/nrpe -r -g nrpe -s /sbin/nologin nrpe'
+    register: result
+    failed_when: result.rc not in [0, 9]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Add nrpe group on a computing node
+    group:
+      state: present
+      name: "nrpe"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+  - name: Add nrpe user on a computing node
+    user:
+      name: nrpe
+      state: present
+      group: "nrpe"
+      shell: "/sbin/nologin"
+      home: "/var/run/nrpe"
+      comment: "NRPE user for the NRPE service"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+          
+# chroot $CHROOT /usr/sbin/groupadd -r nrpe
+  - name: Add nrpe group for computing node images on master
+    command: chroot "{{ compute_chroot_loc }}" /usr/sbin/groupadd -r nrpe
+    register: result
+    failed_when: result.rc not in [0, 9]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+          
+#     mv /etc/nagios/conf.d/services.cfg.example /etc/nagios/conf.d/services.cfg
+# Note: mv command breaks the idempotency of installation.
+# So it is more preferable to use the cp command.
+  - name: Copy the nagios configuration file from services.cfg.example to services.cfg on master
+    command: cp /etc/nagios/conf.d/services.cfg.example /etc/nagios/conf.d/services.cfg
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     mv /etc/nagios/conf.d/hosts.cfg.example /etc/nagios/conf.d/hosts.cfg 
+# Note: mv command breaks the idempotency of installation.
+# So it is more preferable to use the cp command.
+  - name: Copy hosts.cfg.example to hosts.cfg on master
+    command: cp /etc/nagios/conf.d/hosts.cfg.example /etc/nagios/conf.d/hosts.cfg
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     for ((i=0; i<$num_computes; i++)) ; do
+#        perl -pi -e "s/HOSTNAME$(($i+1))/${c_name[$i]}/ || s/HOST$(($i+1))_IP/${c_ip[$i]}/" \
+#        /etc/nagios/conf.d/hosts.cfg
+#     done
+  - name: HOSTNAME configuration for naios on master
+    replace: dest=/etc/nagios/conf.d/hosts.cfg regexp='HOSTNAME{{item.num}}' replace="{{ item.c_name }}" backup=yes
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: HOST IP configuration for naios on master
+    replace: dest=/etc/nagios/conf.d/hosts.cfg regexp='HOST{{ item.num }}_IP' replace="{{ item.c_ip }}" backup=yes
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     perl -pi -e "s/ \/bin\/mail/ \/usr\/bin\/mailx/g" /etc/nagios/objects/commands.cfg
+  - name: Update location of mail binary for alert commands on master
+    replace: dest=/etc/nagios/objects/commands.cfg regexp='\s+/usr/bin/mail\s+' replace=' /usr/bin/mailx ' backup=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     perl -pi -e "s/nagios\@localhost/root\@${sms_name}/" /etc/nagios/objects/contacts.cfg
+  - name: Update email address of contact for alerts on master
+    replace: dest=/etc/nagios/objects/contacts.cfg regexp='nagios@localhost' replace="root@{{ sms_name }}" backup=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo command[check_ssh]=/usr/lib64/nagios/plugins/check_ssh localhost >> $CHROOT/etc/nagios/nrpe.cfg
+  - name: Add check_ssh command for remote hosts plugin for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/nagios/nrpe.cfg"
+      state: present
+      backrefs: no
+      regexp: '^command[check_ssh]=/usr/lib64/nagios/plugins/check_ssh localhost$'
+      line: "command[check_ssh]=/usr/lib64/nagios/plugins/check_ssh localhost"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Add check_ssh command for remote hosts plugin on a computing node
+    lineinfile:
+      path: "/etc/nagios/nrpe.cfg"
+      state: present
+      backrefs: no
+      regexp: '^command[check_ssh]=/usr/lib64/nagios/plugins/check_ssh localhost$'
+      line: "command[check_ssh]=/usr/lib64/nagios/plugins/check_ssh localhost"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+#      
+# We should ensure to access configuration files. cp command changes their group to root.
+# 
+  - name: Chown root:nagios /etc/nagios/conf.d/services.cfg on master
+    file: path="/etc/nagios/conf.d/services.cfg" owner=root group=nagios
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: Chown root:nagios /etc/nagios/conf.d/hosts.cfg on master
+    file: path="/etc/nagios/conf.d/hosts.cfg" owner=root group=nagios
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     chkconfig nagios on
+  - name: enable nagios on master
+    service: name=nagios enabled=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl start nagios
+  - name: start nagios on master
+    service: name=nagios state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     chmod u+s `which ping`
+# - name: Set root to ping on master #Todo
+#   command: chmod u+s `which ping`
+
+  when: 
+    - enable_nagios == true
+#fi

@@ -1,0 +1,10 @@
+#
+#network:  {{internal_network}}
+#
+DEVICE={{ sms_eth_internal }}
+ONBOOT=yes
+TYPE=Ethernet
+BOOTPROTO=none
+IPADDR={{ sms_ip }}
+NETMASK={{ internal_netmask }}
+NM_CONTROLLED=no

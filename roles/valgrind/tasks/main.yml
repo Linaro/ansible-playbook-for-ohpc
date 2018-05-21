@@ -1,0 +1,35 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/valgrind/tasks/main.yml
+#
+
+#yum -y install valgrind-ohpc
+- name: Install valgrind-ohpc on master and a development node
+  yum: name=valgrind-ohpc state=latest
+  when:
+    ( inventory_hostname in groups[ nt_devnodes ] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+#for computing nodes with warewulf
+- name: Install valgrind-ohpc for a computing image on master
+  yum: name=valgrind-ohpc installroot="{{ compute_chroot_loc }}" state=latest
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) and ( enable_warewulf == true ) )
+

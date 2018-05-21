@@ -1,0 +1,9 @@
+---
+
+#
+#roles/lustre-client/vars/main.yml
+#
+
+# Lustre MGS mount name
+mgs_fs_name: "192.168.55.12@o2ib:/lustre1"
+

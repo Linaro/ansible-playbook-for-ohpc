@@ -1,0 +1,104 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/ntp/tasks/main.yml
+#
+
+# Enable NTP services on master
+#systemctl enable ntpd.service
+- name: Enable NTP services on master
+  service: name=ntpd enabled=yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#echo "server ${ntp_server}" >> /etc/ntp.conf
+- name: Set up NTP server on master
+  lineinfile:
+    path: "/etc/ntp.conf"
+    state: present
+    backrefs: no
+    regexp: '^server {{ ntp_server }}$'
+    line: "server {{ ntp_server }}"
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#systemctl restart ntpd
+- name: Restart NTP services on master
+  service: name=ntpd state=restarted
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#yum -y --installroot=$CHROOT install ntp
+- name: Install ntp for computing node images on master
+  yum: name=ntp installroot="{{ compute_chroot_loc }}" state=latest
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Install ntp on a computing node
+  yum: name=ntp state=latest
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#chroot $CHROOT systemctl enable ntpd
+- name: systemctl enable ntpd for computing node images on master
+  command: "chroot {{ compute_chroot_loc }} systemctl enable ntpd"
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: systemctl enable ntpd on a computing node
+  service: name=ntpd enabled=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#echo "server ${sms_ip}" >> $CHROOT/etc/ntp.conf
+- name: Set up ntp server for computing node images on master
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/ntp.conf"
+    state: present
+    backrefs: no
+    regexp: '^server {{ sms_ip }}$'
+    line: "server {{ sms_ip }}"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Set up ntp server on a computing node
+  lineinfile:
+    path: "/etc/ntp.conf"
+    state: present
+    backrefs: no
+    regexp: '^server {{ sms_ip }}$'
+    line: "server {{ sms_ip }}"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+# Restart ntpd on computing nodes is needed for non-warewulf environment
+- name: Restart ntpd on a computing node
+  service: name=ntpd state=restarted
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+

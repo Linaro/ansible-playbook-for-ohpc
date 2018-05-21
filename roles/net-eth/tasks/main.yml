@@ -1,0 +1,73 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/net-eth/tasks/main.yml
+#
+
+#
+# Interface settings for the network for computing nodes
+#
+# Note1: Currently, we assume that this playbook can use the management network 
+#        independent from computing network.
+# Note2: Nmcli module in Ansible has not been mature for practical use,
+#        we should use command module instead for now.
+#
+
+- block:
+    - name: Create an ifcfg file on master
+      template:
+        src: ifcfg-ethN-sms
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_eth_internal }}"
+
+    - name: "Make {{ sms_eth_internal }} down on master"
+      command: "ifdown {{ sms_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+
+    - name: "Make {{ sms_eth_internal }} up on master"
+      command: "ifup {{ sms_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+      
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+    - enable_ifup == true
+
+#
+# Create and make ethernet device on the computing node up
+#
+- block:
+    - name: Create an ifcfg file for the computing node on a computing node
+      template:
+        src: ifcfg-ethN-cnode
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnode_eth_internal }}"
+
+    - name: "Make {{ cnode_eth_internal }} down on a computing node"
+      command: "ifdown {{ cnode_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+
+    - name: "Make {{ cnode_eth_internal }} up on a computing node"
+      command: "ifup {{ cnode_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+    - enable_ifup == true
+

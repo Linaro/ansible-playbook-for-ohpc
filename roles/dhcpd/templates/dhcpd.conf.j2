@@ -1,0 +1,47 @@
+#
+# DHCP Server Configuration file.
+#   see /usr/share/doc/dhcp*/dhcpd.conf.example
+#   see dhcpd.conf(5) man page
+#
+
+#
+#network:  {{ internal_network }}
+#
+subnet {{ internal_network }} netmask {{ internal_netmask }} {
+       option broadcast-address    {{ internal_broadcast }};
+       option subnet-mask          {{ internal_netmask }};
+       option routers              {{ internal_gateway }};
+       option domain-name          "{{ internal_domain_name }}";
+       option domain-name-servers  {{ internal_domain_name_servers }};
+       default-lease-time          {{ internal_default_lease_time }};
+       max-lease-time              {{ internal_max_lease_time }};
+}
+
+
+{% for cnode in compute_nodes %}
+#
+# {{ cnode.c_name }} ( IP: {{ cnode.c_ip }} mac: {{ cnode.c_mac }} )
+# 
+host {{ cnode.c_name }} {
+   hardware ethernet {{ cnode.c_mac }};
+   fixed-address {{ cnode.c_ip }};
+   option host-name "{{ cnode.c_name }}";
+}
+ 
+{% endfor %}
+
+{% if enable_ipoib == true %}
+
+{% for ibnode in compute_ipoib %}
+#
+# IPoIB {{ ibnode.num }} ( IP: {{ ibnode.c_ipoib }} client id: {{ ibnode.c_cid }} )
+# 
+host ipoib-{{ ibnode.num }} {
+   option dhcp-client-identifier = {{ ibnode.c_cid }};
+   fixed-address {{ ibnode.c_ipoib }};
+   option host-name "ipoib-{{ ibnode.num }}";
+}
+ 
+{% endfor %}
+   
+{% endif %}

@@ -1,0 +1,194 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/slurm-client/tasks/main.yml
+#
+
+#yum -y --installroot=$CHROOT groupinstall ohpc-slurm-client
+- name: Install ohpc-slurm-client for computing node images on master
+  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+  with_items:
+    - ohpc-slurm-client
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Install ohpc-slurm-client on computing nodes
+  yum: name={{ item }} state=latest
+  with_items:
+    - ohpc-slurm-client
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#perl -pi -e "s/ControlMachine=\S+/ControlMachine=${sms_name}/" /etc/slurm/slurm.conf
+- name: Identify resource manager hostname on master
+  replace: dest=/etc/slurm/slurm.conf regexp='ControlMachine=\S+' replace="ControlMachine={{ sms_name }}" backup=yes
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
+- block:
+
+  - name: slum configuration on master and computing node    # Todo:It may not be written here
+    replace: dest=/etc/slurm/slurm.conf regexp='^NodeName=(\S+).+State=(\S+)' replace="NodeName={{ compute_prefix }}[1-{{ num_computes }}] State=\2" backup=yes
+  - name: slum configuration on master and computing node    # Todo:It may not be written here
+    replace: dest=/etc/slurm/slurm.conf regexp='^PartitionName=normal Nodes=(\S+)' replace="PartitionName=normal Nodes={{ compute_prefix }}[1-{{ num_computes }}]" backup=yes
+
+  when: 
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+- block:
+
+  - name: slum configuration on master    # Todo:It may not be written here
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^NodeName=(\S+).+State=(\S+)' replace="NodeName={{ compute_prefix }}[1-{{ num_computes }}] State=\2" backup=yes
+
+  - name: slum configuration on master     # Todo:It may not be written here
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^PartitionName=normal Nodes=(\S+)' replace="PartitionName=normal Nodes={{ compute_prefix }}[1-{{ num_computes }}]" backup=yes
+
+  when: 
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+# Note: In typical cases we run this playbook on sms as normal user.
+# We should change the file/directory mode before copying it.
+#
+- name: Change the file mode of /etc/munge/munge.key to copy on master
+  file: path=/etc/munge/munge.key state=file mode=0644
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+- name: Change the file mode of /etc/munge to copy on master
+  file: path=/etc/munge state=directory mode=0755
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+- name: Fetch /etc/munge/munge.key in sms to a ansible local /tmp
+  fetch:
+    src: /etc/munge/munge.key
+    dest: /tmp/munge.key
+    flat: yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+- name: Copy /etc/munge/munge.key in sms to a compuing node
+  copy:
+    src:  /tmp/munge.key
+    dest: /etc/munge/munge.key
+    owner: munge
+    group: munge
+    mode: 0400
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Remove /tmp/munge.key on ansible local
+  local_action: file path=/tmp/munge.key state=absent
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+- name: Fix the file mode of /etc/munge/munge.key  on master
+  file: path=/etc/munge/munge.key state=file mode=0400
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+- name: Fix the file mode of /etc/munge on master
+  file: path=/etc/munge state=directory mode=0700
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == false
+
+# Note: We need to make slurmd on computing node enabled.
+# Even though it might be also needed for recipe.sh, but it has not been written in current recipe.sh.
+#
+- name: Enable a munge for computing images on master
+  command: chroot "{{ compute_chroot_loc }}" systemctl enable munge
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Enable a munge client on a computing node
+  service: name=munge enabled=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+    
+- name: Enable a slurm client for computing images on master
+  command: chroot "{{ compute_chroot_loc }}" systemctl enable slurmd
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Enable a slurm client on a computing node
+  service: name=slurmd enabled=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+# ------------------------------------
+# Resource Manager Startup (Section 5)
+# ------------------------------------
+
+#systemctl enable munge
+- name: enable munge on master
+  service: name=munge enabled=yes
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl enable slurmctld
+- name: enable slurmctld on master
+  service: name=slurmctld enabled=yes
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl start munge
+- name: start munge on master
+  service: name=munge state=started
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl start slurmctld
+- name: start slurmctld on master
+  service: name=slurmctld state=started
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#Start munge on computing node
+- name: Start munge on a computing node
+  service: name=munge state=started
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+
+#pdsh -w c[1-4] systemctl start slurmd
+- name: Start slurm clients on a computing node
+  service: name=slurmd state=started
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+

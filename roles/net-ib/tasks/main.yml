@@ -1,0 +1,220 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/net-ib/tasks/main.yml
+#
+
+# ------------------------------------------------------------
+# Add InfiniBand support services on master node (Section 3.5)
+# ------------------------------------------------------------
+#yum -y groupinstall "InfiniBand Support"
+- name: Install InfiniBand support on master
+  yum: name={{ item }} state=latest
+  with_items:
+    - "@InfiniBand Support"
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#systemctl start rdma
+- name: Start rdma services on master
+  service: name=rdma state=started
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+#if [[ ${enable_ipoib} -eq 1 ]];then
+- block:
+
+#     # Enable ib0
+#     cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
+  - name: Copy ifcfg-ib0 on master
+    command: cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
+    register: result
+    failed_when: result.rc not in [0]
+    
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on master
+    replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='master_ipoib' replace="{{ sms_ipoib }}"
+
+#     perl -pi -e "s/ipoib_netmask/${ipoib_netmask}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB netmask on master
+    replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='ipoib_netmask' replace="{{ ipoib_netmask }}"
+
+#     ifup ib0
+  - name: Initiate ib0 on master
+    command: ifup ib0
+    register: result
+    failed_when: result.rc not in [0]
+
+  when: 
+    - enable_ipoib == true
+    - inventory_hostname in groups[nt_sms]
+#fi
+
+# Optionally enable opensm subnet manager
+#if [[ ${enable_opensm} -eq 1 ]];then
+- block:
+
+#     yum -y install opensm
+  - name: Install opensm on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - opensm
+
+#     systemctl enable opensm
+  - name: Enable opensm on master
+    service: name=opensm enabled=yes
+
+#     systemctl start opensm
+  - name: Start opensm on master
+    service: name=opensm state=started
+
+  when: 
+    - enable_opensm == true
+    - inventory_hostname in groups[nt_sms]
+#fi
+
+#yum -y --installroot=$CHROOT groupinstall "InfiniBand Support"
+- name: Install InfiniBand support to computing node images on master
+  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+  with_items:
+    - "@InfiniBand Support"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Install InfiniBand support on computing nodes
+  yum: name={{ item }} state=latest
+  with_items:
+    - "@InfiniBand Support"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#chroot $CHROOT systemctl enable rdma
+- name: enable rdma for computing node images on master
+  command: "chroot {{ compute_chroot_loc }} systemctl enable rdma"
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: enable rdma on a computing node
+  service: name=rdma enabled=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+#perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' /etc/security/limits.conf
+#perl -pi -e 's/# End of file/\* hard memlock unlimited\n$&/s' /etc/security/limits.conf
+#perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' $CHROOT/etc/security/limits.conf
+#perl -pi -e 's/# End of file/\* hard memlock unlimited\n$&/s' $CHROOT/etc/security/limits.conf
+
+- block:
+  - name: remove current soft memlock /etc/security/limits.conf for computing node images on master
+    replace:
+      path: "{{ compute_chroot_loc }}/etc/security/limits.conf"
+      regexp: '^\* soft memlock unlimited\n'
+
+  - name: Add soft mem lock to /etc/security/limits.conf for computing node images on master
+    lineinfile:
+      path:  "{{ compute_chroot_loc }}/etc/security/limits.conf"
+      state: present
+      backrefs: yes
+      regexp: '^(# End of file\s*\n)'
+      line: '* soft memlock unlimited\n\1'
+
+  - name: remove current hard memlock for computing node images on master
+    replace:
+      path: "{{ compute_chroot_loc }}/etc/security/limits.conf"
+      regexp: '^\* hard memlock unlimited\n'
+      
+  - name: Add hard mem lock for computing node images on master
+    lineinfile:
+      path: "{{ compute_chroot_loc }}/etc/security/limits.conf"
+      state: present
+      backrefs: yes
+      regexp: '^(# End of file\s*\n)'
+      line: '* hard memlock unlimited\n\1'
+
+  when:
+    - inventory_hostname in groups[nt_sms] 
+    - enable_warewulf == true
+
+- block:
+  - name: remove current soft memlock /etc/security/limits.conf on master and computing nodes
+    replace:
+      path: "/etc/security/limits.conf"
+      regexp: '^\* soft memlock unlimited\n'
+
+  - name: Add soft mem lock to /etc/security/limits.conf on master and computing nodes
+    lineinfile:
+      path:  "/etc/security/limits.conf"
+      state: present
+      backrefs: yes
+      regexp: '^(# End of file\s*\n)'
+      line: '* soft memlock unlimited\n\1'
+
+  - name: remove current hard memlock on master and computing nodes
+    replace:
+      path: "/etc/security/limits.conf"
+      regexp: '^\* hard memlock unlimited\n'
+
+  - name: Add hard mem lock on master and computing nodes
+    lineinfile:
+      path: "/etc/security/limits.conf"
+      state: present
+      backrefs: yes
+      regexp: '^(# End of file\s*\n)'
+      line: '* hard memlock unlimited\n\1'
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+# Optionally, define IPoIB network settings (required if planning to mount Lustre over IB)
+# if [[ ${enable_ipoib} -eq 1 ]];then
+#      for ((i=0; i<$num_computes; i++)) ; do
+#         wwsh -y node set ${c_name[$i]} -D ib0 --ipaddr=${c_ipoib[$i]} --netmask=${ipoib_netmask}
+#      done
+- block:
+
+     - name: Define IPoIB network settings on master
+       shell: wwsh -d -v -y node set "{{ item.c_name }}" -D ib0 --ipaddr="{{ item.c_ipoib }}" --netmask="{{ ipoib_netmask }}"
+       register: result
+       failed_when: result.rc not in [0]
+       with_items: "{{ compute_nodes }}"
+       when:
+         - inventory_hostname in groups[nt_sms]
+         - enable_warewulf == true
+
+#      wwsh -y provision set "${compute_regex}" --fileadd=ifcfg-ib0.ww
+     - name: Set IPoIB network settings to warewulf data store on master
+       shell: wwsh -d -v -y provision set "{{ compute_regex }}" --fileadd=ifcfg-ib0.ww
+       register: result
+       failed_when: result.rc not in [0]
+       when:
+         - inventory_hostname in groups[nt_sms]
+         - enable_warewulf == true
+
+# Todo: IB if for each computing node without warewulf
+
+  when:
+    - enable_ipoib == true
+# fi
