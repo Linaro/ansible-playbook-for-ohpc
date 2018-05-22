@@ -37,6 +37,30 @@
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
+# Enable slurm pam module
+#echo "account    required     pam_slurm.so" >> $CHROOT/etc/pam.d/sshd
+- name: Enable slurm pam module for computing node images on master
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/pam.d/sshd"
+    state: present
+    backrefs: no
+    regexp: '^account    required     pam_slurm\.so$'
+    line: "account    required     pam_slurm.so"
+  when:
+    - inventory_hostname in groups[nt_sms] 
+    - enable_warewulf == true
+
+- name: Enable slurm pam module on a computing node
+  lineinfile:
+    path: "/etc/pam.d/sshd"
+    state: present
+    backrefs: no
+    regexp: '^account    required     pam_slurm\.so$'
+    line: "account    required     pam_slurm.so"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
 #perl -pi -e "s/ControlMachine=\S+/ControlMachine=${sms_name}/" /etc/slurm/slurm.conf
 - name: Identify resource manager hostname on master
   replace: dest=/etc/slurm/slurm.conf regexp='ControlMachine=\S+' replace="ControlMachine={{ sms_name }}" backup=yes

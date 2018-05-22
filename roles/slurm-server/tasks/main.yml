@@ -31,29 +31,10 @@
   when:
     - inventory_hostname in groups[nt_sms]
 
-# Enable slurm pam module
-#echo "account    required     pam_slurm.so" >> $CHROOT/etc/pam.d/sshd
-- name: Enable slurm pam module for computing node images on master
-  lineinfile:
-    path: "{{ compute_chroot_loc }}/etc/pam.d/sshd"
-    state: present
-    backrefs: no
-    regexp: '^account    required     pam_slurm\.so$'
-    line: "account    required     pam_slurm.so"
-  when:
-    - inventory_hostname in groups[nt_sms] 
-    - enable_warewulf == true
-
-- name: Enable slurm pam module on a computing node
-  lineinfile:
-    path: "/etc/pam.d/sshd"
-    state: present
-    backrefs: no
-    regexp: '^account    required     pam_slurm\.so$'
-    line: "account    required     pam_slurm.so"
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+#
+#We move pam module settings for slurm to slurm client on purpose because 
+#we should install slurm client packages before set up pam modules.
+#
 
 #if [[ ${enable_clustershell} -eq 1 ]];then
 - block:
