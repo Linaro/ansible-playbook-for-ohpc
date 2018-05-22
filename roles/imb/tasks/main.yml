@@ -24,8 +24,15 @@
   yum: name={{ item }} state=latest
   with_items:
     - imb-gnu7-openmpi-ohpc
-    - imb-gnu7-mvapich2-ohpc
     - imb-gnu7-openmpi3-ohpc
     - imb-gnu7-mpich-ohpc
   when:
     - inventory_hostname in groups[nt_sms]
+
+- name: Install Intel MPI Bench for mvapich2 on master
+  yum: name={{ item }} state=latest
+  with_items:
+    - imb-gnu7-mvapich2-ohpc
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - ansible_machine == "x86_64"
