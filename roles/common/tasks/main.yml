@@ -29,6 +29,7 @@
   with_items:
     - perl
     - dhcp
+    - firewalld
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
@@ -53,7 +54,7 @@
       name: "{{ ohpc_release_rpm_arm }}"
       state: present
     when:  
-      ( inventory_hostname in groups[nt_sms] ) ) or
+      ( inventory_hostname in groups[nt_sms] )  or
       ( inventory_hostname in groups[nt_devnodes] ) or
       ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
 

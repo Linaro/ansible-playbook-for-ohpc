@@ -1,3 +1,3 @@
 #!/bin/sh
 
-ansible-playbook -i inventory/target site.yml --syntax-check
+ansible-playbook -i inventory/hosts site.yml --syntax-check
