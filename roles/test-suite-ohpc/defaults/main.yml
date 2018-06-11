@@ -1,0 +1,110 @@
+enable_junit: False
+
+configure_packages:
+  - name: long
+    status: disable
+  - name: adios
+    status: disable
+  - name: boost
+    status: disable
+  - name: boost-mpi
+    status: disable
+  - name: compilers
+    status: disable
+  - name: fftw
+    status: disable
+  - name: gsl
+    status: disable
+  - name: hdf5
+    status: disable
+  - name: hwloc
+    status: disable
+  - name: hypre
+    status: disable
+  - name: imb
+    status: disable
+  - name: mpi
+    status: disable
+  - name: mumps
+    status: disable
+  - name: mfem
+    status: disable
+  - name: minife
+    status: disable
+  - name: netcdf
+    status: disable
+  - name: numpy
+    status: disable
+  - name: ocr
+    status: disable
+  - name: petsc
+    status: disable
+  - name: phdf5
+    status: disable
+  - name: plasma
+    status: disable
+  - name: pnetcdf
+    status: disable
+  - name: ptscotch
+    status: disable
+  - name: R
+    status: disable
+  - name: scotch
+    status: disable
+  - name: slepc
+    status: disable
+  - name: superlu
+    status: disable
+  - name: superlu_dist
+    status: disable
+  - name: scalasca
+    status: disable
+  - name: scipy
+    status: disable
+  - name: tau
+    status: disable
+  - name: trilinos
+    status: disable
+  - name: valgrind
+    status: disable
+  - name: hpcg
+    status: disable
+  - name: prk
+    status: disable
+  - name: autotools
+    status: disable
+  - name: cmake
+    status: disable
+  - name: charliecloud
+    status: disable
+  - name: easybuild
+    status: disable
+  - name: metis
+    status: disable
+  - name: tbb
+    status: disable
+  - name: minidft
+    status: disable
+  - name: cilk
+    status: disable
+  - name: munge
+    status: disable
+  - name: mpi4py
+    status: disable
+  - name: mpiP
+    status: disable
+  - name: openblas
+    status: disable
+  - name: rms-harness
+    status: disable
+  - name: scalapack
+    status: disable
+  - name: papi
+    status: disable
+  - name: likwid
+    status: disable
+  - name: packaging
+    status: disable
+
+mpi_families: openmpi3
+compiler_families: gnu7

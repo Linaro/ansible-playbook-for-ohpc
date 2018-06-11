@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd /home/ohpc-test/tests
+./configure {% for pkg in configure_packages %} --{{ pkg.status }}-{{ pkg.name }} {% endfor %} --with-mpi-families={{ mpi_families }} --with-compiler-families={{ compiler_families }}

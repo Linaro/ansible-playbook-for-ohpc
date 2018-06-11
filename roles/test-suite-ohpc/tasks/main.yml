@@ -1,0 +1,94 @@
+- name: Create the ohpc-test user on cnodes
+  user:
+    name: ohpc-test
+  when:
+    - enable_warewulf == False
+    - inventory_hostname in groups[nt_cnodes]
+
+- name: Create the ohpc-test user on cnodes with warewulf
+  shell: "wwsh file resync passwd shadow group ; pdsh -w {{ compute_regex }} /warewulf/bin/wwgetfiles"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == True
+
+- block:
+    - name: Uninstall test-suite
+      yum:
+        name: test-suite-ohpc
+        state: absent
+
+    - name: Wipe out anything test-suite related
+      shell: rm -rf /home/ohpc-test/tests
+
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+- block:
+    - name: Install test suite
+      yum:
+        name: test-suite-ohpc
+        state: latest
+
+    - name: Install TAU for openmpi3 (default is mpich)
+      yum:
+        name: tau-gnu7-openmpi3-ohpc
+        state: latest
+
+    - name: Create the ohpc-test user on cnodes
+      shell: "wwsh file resync passwd shadow group ; pdsh -w {{ compute_regex }} /warewulf/bin/wwgetfiles"
+      when:
+        - enable_warewulf == True
+
+    - name: Render configure script template
+      template:
+        src: "{{ role_path }}/templates/configure.sh.j2"
+        dest: /home/ohpc-test/configure.sh
+        group: ohpc-test
+        owner: ohpc-test
+        mode: 0744
+
+    - name: Configure test suite
+      shell: /home/ohpc-test/configure.sh
+      become: yes
+      become_user: ohpc-test
+      become_method: su
+      register: testsuite_configure
+
+    - debug: msg="{{ testsuite_configure.stdout_lines }} {{ testsuite_configure.stderr_lines }}"
+
+    - name: Run the test suite with JUnit xml output in addition to regular logs
+      shell: cd /home/ohpc-test/tests && make check
+      environment:
+        BATS_JUNIT_FORMAT: "1"
+      become: yes
+      become_user: ohpc-test
+      become_method: su
+      register: testsuite_output
+
+    - debug: msg="{{ testsuite_output.stdout_lines }} {{ testsuite_output.stderr_lines }}"
+
+    - block:
+        - name: If we want, get those xml JUnit logs back
+          find:
+            paths: /home/ohpc-test/tests
+            recurse: yes
+            patterns: "*.xml"
+          register: xml_junit_files
+
+        - name: Archive all those files
+          archive:
+            path: "{{ xml_junit_files.files | map(attribute='path') | list }}"
+            dest: "/tmp/junit-results.tar.gz"
+            format: gz
+
+        - name: Fetch the archive
+          fetch:
+            src: "/tmp/junit-results.tar.gz"
+            dest: "{{ playbook_dir }}/../"
+
+      when:
+        - enable_junit == True
+
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_testsuiteohpc == True
