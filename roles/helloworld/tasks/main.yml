@@ -1,0 +1,40 @@
+- block:
+  - name: Add user test to master
+    user:
+      name: test
+      comment: Test User for Hello World MPI test
+      state: present
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: Propagate this to the computes in stateful
+    user:
+      name: test
+      comment: Test User for Hello World MPI test
+      state: present
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
+  - name: Propagate this to the computes in stateless
+    shell: wwsh file resync passwd shadow group
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == True
+
+  - name: Run the Hello World test
+    become: yes
+    become_method: su
+    become_user: test
+    shell: "cd /home/test/ && mpicc -O3 /opt/ohpc/pub/examples/mpi/hello.c && srun -n 8 -N {{ num_computes }} --mpi=pmix /home/test/a.out"
+    register: test_output
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_nfs_home == True
+
+  - debug: msg="{{ test_output.stdout_lines }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_helloworld == True
