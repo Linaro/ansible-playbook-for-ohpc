@@ -123,6 +123,8 @@ compute_nodes:
 - { num: 1, c_name: "c1", c_ip: "192.168.44.21", c_mac: "52:54:00:44:00:01", c_bmc: "192.168.66.11"}
 - { num: 2, c_name: "c2", c_ip: "192.168.44.22", c_mac: "52:54:00:44:00:02", c_bmc: "192.168.66.12"}
 
+# This flag forces ReturnToService=2 on all nodes in slurm.
+force_service: False
 
 # Optional settings
 #

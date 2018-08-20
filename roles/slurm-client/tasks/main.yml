@@ -80,6 +80,11 @@
   - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
     replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
 
+  - name: replace ReturnToService
+    replace: dest="/etc/slurm/slurm.conf" regexp='ReturnToService=1' replace="ReturnToService=2" backup=yes
+    when: 
+      - force_service == True
+
   when: 
     ( ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
@@ -103,6 +108,11 @@
 
   - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
+
+  - name: replace ReturnToService
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='ReturnToService=1' replace="ReturnToService=2" backup=yes
+    when: 
+      - force_service == True
 
   when: 
     - inventory_hostname in groups[nt_sms]

@@ -6,3 +6,5 @@
 
 slurm_mpi_default: 'none'
 slurm_max_time: 'INFINITE'
+# This flag makes ReturnToService=2 instead of =1
+force_service: False
