@@ -70,20 +70,20 @@
     - spack
     - hwloc
     - R
-    - compiler-gnu7
+    - compiler-gnu
     - compiler-llvm
     - compiler-intel
-    - openmpi-gnu7
-    - openmpi3-gnu7
-    - mpich-gnu7
-    - mvapich2-gnu7
+    - openmpi-gnu
+    - openmpi3-gnu
+    - mpich-gnu
+    - mvapich2-gnu
     - openmpi-intel
     - mpich-intel
     - mvapich2-intel
     - impi-intel
-    - perf-tools-gnu7
+    - perf-tools-gnu
     - perf-tools-intel
-    - third-party-libs-gnu7
+    - third-party-libs-gnu
     - third-party-libs-intel
     - imb
     - warewulf-final
