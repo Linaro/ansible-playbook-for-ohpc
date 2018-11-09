@@ -1,0 +1,7 @@
+---
+
+#
+#roles/openmpi-gnu/defaults/main.yml
+#
+
+gnu_version: "7"
