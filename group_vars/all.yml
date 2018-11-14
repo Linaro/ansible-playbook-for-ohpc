@@ -68,6 +68,14 @@ eth_provision: "eth2"
 # ethernet interface on computing nodes( for non-warewulf environment )
 cnode_eth_internal: "eth2"
 
+# Release Mellanox OFED iso
+mellanox_iso_url: "http://content.mellanox.com/ofed/MLNX_OFED-4.3-2.0.2.0/MLNX_OFED_LINUX-4.3-2.0.2.0-rhel7.4-x86_64.iso"
+# Mellanox OFED iso file
+mellanox_iso_file: "MLNX_OFED_LINUX-4.3-2.0.2.0-rhel7.4-x86_64.iso"
+
+# GNU Toolchain version to use:
+gnu_version: "8"
+
 # Flags for optional installation/configuration
 enable_beegfs_client: false
 enable_mpi_defaults: true
@@ -75,6 +83,8 @@ enable_mpi_opa: false
 enable_clustershell: true
 enable_ipmisol: false
 enable_opensm: false
+enable_mellanox_ib: true
+enable_linux_ib: false
 enable_ipoib: false
 enable_ganglia: true
 enable_genders: true
@@ -89,6 +99,7 @@ enable_ifup: false
 enable_warewulf: true
 enable_nfs_ohpc: false
 enable_nfs_home: true
+enable_reboot: false
 
 #
 #dhcpd settings
