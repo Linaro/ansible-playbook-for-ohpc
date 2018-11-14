@@ -23,48 +23,151 @@
 # ------------------------------------------------------------
 # Add InfiniBand support services on master node (Section 3.5)
 # ------------------------------------------------------------
-#yum -y groupinstall "InfiniBand Support"
-- name: Install InfiniBand support on master
-  yum: name={{ item }} state=latest
-  with_items:
-    - "@InfiniBand Support"
-  when:
-    - inventory_hostname in groups[nt_sms]
 
-#systemctl start rdma
-- name: Start rdma services on master
-  service: name=rdma state=started
+- block:
+#yum -y groupinstall "InfiniBand Support"
+  - name: Install InfiniBand support on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - "@InfiniBand Support"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#systmctl start rdma
+  - name: Start rdma services on master
+    service: name=rdma state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
   when:
-    - inventory_hostname in groups[nt_sms]
+    - enable_linux_ib == true
+
+- block:
+    - name: download mellanox iso image faile
+      get_url: url={{ mellanox_iso_url }} dest=/tmp
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+    - name: mount mellanox iso image on master
+      mount:
+        name: "/mnt/mlnx" 
+        src: /tmp/{{ mellanox_iso_file }}
+        fstype: iso9660
+        opts: ro,loop
+        state: mounted
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+#yum install required packages for installing MLNX_OFED_LINUX on master
+    - name: Install  on master
+      yum: name={{ item }} state=latest
+      with_items:
+        - pciutils
+        - lsof
+        - gtk2
+        - atk
+        - gcc-gfortran
+        - tk
+      when:
+        - inventory_hostname in groups[nt_sms]
+
+#./mnt/mlnxofedinstall --all  --force
+    - name: run a script "/mnt/mlnxofedinstall --force" on master
+      shell: /mnt/mlnx/mlnxofedinstall --force
+      register: result
+      failed_when: result.rc not in [0]
+      when:
+        - inventory_hostname in groups[nt_sms]
+ 
+# sleep 2 && shutdown -r now   
+    - name: restart sms machine
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      become: true
+      ignore_errors: true
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_reboot == true
+
+    - name: wait for reboot
+      wait_for_connection:
+        delay: 30
+        timeout: 300
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_reboot == true        
+  when:
+    - enable_mellanox_ib == true
 
 #if [[ ${enable_ipoib} -eq 1 ]];then
 - block:
 
 #     # Enable ib0
 #     cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
-  - name: Copy ifcfg-ib0 on master
-    command: cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
-    register: result
-    failed_when: result.rc not in [0]
-    
+
+  - block:
+
+    - name: Copy ifcfg-ib0 on master
+      command: cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
+      register: result
+      failed_when: result.rc not in [0]
+
 #     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Define local IPoIB address on master
-    replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='master_ipoib' replace="{{ sms_ipoib }}"
+    - name: Define local IPoIB address on master
+      replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='master_ipoib' replace="{{ sms_ipoib }}" 
 
 #     perl -pi -e "s/ipoib_netmask/${ipoib_netmask}/" /etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Define local IPoIB netmask on master
-    replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='ipoib_netmask' replace="{{ ipoib_netmask }}"
+    - name: Define local IPoIB netmask on master
+      replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
 
 #     ifup ib0
-  - name: Initiate ib0 on master
-    command: ifup ib0
+    - name: Initiate ib0 on master
+      command: ifup ib0
+      register: result
+      failed_when: result.rc not in [0]
+
+    when:
+      - enable_dhcpd_server == false      
+
+  - block:
+
+    - name: Create an ifcfg-ib file on master
+      template:
+        src: ifcfg-ib-sms
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}" 
+
+    - name: Make {{ sms_ipoib_internal }} up on master
+      command: "ifup {{ sms_ipoib_internal }}" 
+      register: result
+      failed_when: result.rc not in [0]
+
+    when:
+        - enable_dhcpd_server == true      
+
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_ipoib == true
+    - enable_ifup == true
+#fi
+
+- block:
+
+  - name: Create an ifcfg-ib file on cnodes
+    template:
+      src: ifcfg-ib-cnodes
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
+
+  - name: Make {{ cnodes_ipoib_internal }} up on master
+    command: "ifup {{ conodes_ipoib_internal }}" 
     register: result
     failed_when: result.rc not in [0]
 
-  when: 
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
     - enable_ipoib == true
-    - inventory_hostname in groups[nt_sms]
-#fi
+    - enable_ifup == true
+    - enable_warewulf == false
 
 # Optionally enable opensm subnet manager
 #if [[ ${enable_opensm} -eq 1 ]];then
@@ -89,37 +192,123 @@
     - inventory_hostname in groups[nt_sms]
 #fi
 
-#yum -y --installroot=$CHROOT groupinstall "InfiniBand Support"
-- name: Install InfiniBand support to computing node images on master
-  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-  with_items:
-    - "@InfiniBand Support"
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
 
-- name: Install InfiniBand support on computing nodes
-  yum: name={{ item }} state=latest
-  with_items:
-    - "@InfiniBand Support"
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+- block:
+  #yum -y --installroot=$CHROOT groupinstall "InfiniBand Support"
+  - name: Install InfiniBand support to computing node images on master
+    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
+    with_items:
+      - "@InfiniBand Support"
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
+
+  - name: Install InfiniBand support on computing nodes
+    yum: name={{ item }} state=latest
+    with_items:
+      - "@InfiniBand Support"
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
 
 #chroot $CHROOT systemctl enable rdma
-- name: enable rdma for computing node images on master
-  command: "chroot {{ compute_chroot_loc }} systemctl enable rdma"
-  register: result
-  failed_when: result.rc not in [0]
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
+  - name: enable rdma for computing node images on master
+    command: "chroot {{ compute_chroot_loc }} systemctl enable rdma"
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+      - enable_warewulf == true
 
-- name: enable rdma on a computing node
-  service: name=rdma enabled=yes
+  - name: enable rdma on a computing node
+    service: name=rdma enabled=yes
+    when:
+      - inventory_hostname in groups[nt_cnodes]
+      - enable_warewulf == false
+
   when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
+    - enable_linux_ib == true  
+
+- block:
+    - name: mount mellanox iso image to computing node images on master
+      mount:
+        name: "{{ compute_chroot_loc }}/mnt/mlnx"
+        src: /tmp/{{ mellanox_iso_file }}
+        fstype: iso9660
+        opts: ro,loop
+        state: mounted
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf == true
+
+    - name: run a script /mnt/mlnxofedinstall --force to computing node images on master
+      shell: "{{ compute_chroot_loc }}/mnt/mlnx/mlnxofedinstall --force"
+      register: result
+      failed_when: result.rc not in [0]
+      when:
+        - inventory_hostname in groups[nt_sms]
+        - enable_warewulf == true
+
+    - name: download mellanox iso image faile on computing node
+      get_url: url={{ mellanox_iso_url }} dest=/tmp
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false
+
+    - name: mount mellanox iso image on computing node
+      mount:
+        name: "/mnt/mlnx"
+        src: /tmp/{{ mellanox_iso_file }}
+        fstype: iso9660
+        opts: ro,loop
+        state: mounted
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false        
+
+#yum install pciutils lsof gtk2 atk gcc-gfortran tk
+    - name: Install required packages for installing MLNX_OFED_LINUX on computing node
+      yum: name={{ item }} state=latest
+      with_items:
+        - pciutils
+        - lsof
+        - gtk2
+        - atk
+        - gcc-gfortran
+        - tk
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false
+
+    - name: run a script "/mnt/mlnxofedinstall --force" on computing node
+      shell: /mnt/mlnx/mlnxofedinstall --force
+      register: result
+      failed_when: result.rc not in [0]
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false
+
+# sleep 2 && shutdown -r now
+    - name: restart computing node machine
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      become: true
+      ignore_errors: true
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_reboot == true
+
+    - name: wait for reboot
+      wait_for_connection:
+        delay: 30
+        timeout: 300
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_reboot == true
+
+  when:
+    - enable_mellanox_ib == true  
 
 #perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' /etc/security/limits.conf
 #perl -pi -e 's/# End of file/\* hard memlock unlimited\n$&/s' /etc/security/limits.conf
@@ -199,7 +388,7 @@
        shell: wwsh -d -v -y node set "{{ item.c_name }}" -D ib0 --ipaddr="{{ item.c_ipoib }}" --netmask="{{ ipoib_netmask }}"
        register: result
        failed_when: result.rc not in [0]
-       with_items: "{{ compute_nodes }}"
+       with_items: "{{ compute_ipoib }}"
        when:
          - inventory_hostname in groups[nt_sms]
          - enable_warewulf == true
