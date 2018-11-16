@@ -1,0 +1,87 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with
+# this work for additional information regarding copyright
+# ownership.
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/rsyslog/tasks/main.yml
+#
+
+# --------------------------------------------------------
+# Configure rsyslog on SMS and computes (Section 3.7.4.10)
+# --------------------------------------------------------
+- name: Define computing node forwarding destination on a computing node
+  lineinfile:
+    path: "/etc/rsyslog.conf"
+    state: present
+    backrefs: no
+    regexp: '^\*\.\* @{{ sms_ip }}{{ d_colon }}514$'
+    line: "*.* @{{ sms_ip }}{{ d_colon }}514"
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for info on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^\*\.info' replace="#*.info" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for authpriv on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^authpriv' replace="#authpriv" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for mail on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^mail' replace="#mail" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for cron on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^cron' replace="#cron" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Disable most local logging on computes for uucp on a computing node
+  replace: dest="/etc/rsyslog.conf" regexp='^uucp' replace="#uucp" backup=yes
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
+
+- name: Configure to receive messages module of rsyslog on a computing node
+  replace: dest=/etc/rsyslog.conf regexp='#\$ModLoad imudp' replace="$ModLoad imudp" backup=yes
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+- name: Configure to receive messages port for rsyslog on a computing node
+  replace: dest=/etc/rsyslog.conf regexp='#\$UDPServerRun 514' replace="$UDPServerRun 514" backup=yes
+  when:
+    ( ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+
+- name: Restart rsyslog on a computing node
+  service: name=rsyslog state=restarted
+  when:
+    ( inventory_hostname in groups[nt_sms] ) or
+    ( inventory_hostname in groups[nt_devnodes] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
+
