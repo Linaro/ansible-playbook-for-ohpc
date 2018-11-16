@@ -18,7 +18,7 @@
 
 - hosts: all
   user: root
-
+  any_errors_fatal: yes
   become: yes
      
   pre_tasks:
@@ -44,21 +44,22 @@
   roles:
     - common
     - warewulf-init
+    - ohpc-base
+    - slurm-server
+    - ntp
+    - kernel
+    - lmod
+    - slurm-client
+    - nfs
+    - clustershell
+    - mrsh
+    - rsyslog
+    - conman
+    - genders
     - net-eth
     - net-ib
     - net-infinipath
-    - kernel
     - dhcpd
-    - ohpc-base
-    - lmod
-    - slurm-server
-    - clustershell
-    - mrsh
-    - genders
-    - conman
-    - rsyslog
-    - nfs
-    - ntp
     - lustre-client
     - nagios
     - ganglia
@@ -85,7 +86,6 @@
     - third-party-libs-gnu7
     - third-party-libs-intel
     - imb
-    - slurm-client
     - warewulf-final
-    # - booting-computing-nodes/
-    - final
+    # - booting-computing-nodes
+    - final 
