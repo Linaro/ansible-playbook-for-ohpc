@@ -1,0 +1,62 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/final/tasks/main.yml
+#
+
+# ------------------------------------
+# Resource Manager Startup (Section 5)
+# ------------------------------------
+
+#systemctl enable munge
+- name: enable munge on master
+  service: name=munge enabled=yes
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl enable slurmctld
+- name: enable slurmctld on master
+  service: name=slurmctld enabled=yes
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl start munge
+- name: start munge on master
+  service: name=munge state=started
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#systemctl start slurmctld
+- name: start slurmctld on master
+  service: name=slurmctld state=started
+  when:
+    - inventory_hostname in groups[ nt_sms ]
+
+#Start munge on computing node
+- name: Start munge on a computing node
+  service: name=munge state=started
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+
+#pdsh -w c[1-4] systemctl start slurmd
+- name: Start slurm clients on a computing node
+  service: name=slurmd state=started
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+
