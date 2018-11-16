@@ -157,7 +157,7 @@
   blockinfile:
     dest: "{{ ansible_env.HOME }}/.ssh/config"
     content:
-          "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n"
+      "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\n"
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
@@ -167,7 +167,7 @@
   blockinfile:
     dest: "{{ ansible_home }}/.ssh/config"
     content:
-      "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n"
+      "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\n"
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
