@@ -20,167 +20,6 @@
 #roles/warewulf/tasks/main.yml
 #
 
-#yum -y groupinstall ohpc-warewulf
-- name: Install ohpc-warewulf on master
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-warewulf
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-# -----------------------------------------------------------
-# Complete basic Warewulf setup for master node (Section 3.6)
-# -----------------------------------------------------------
-- block:
-
-#perl -pi -e "s/device = eth1/device = ${sms_eth_internal}/" /etc/warewulf/provision.conf
-  - name: Configure Warewulf provisioning on master
-    replace: dest=/etc/warewulf/provision.conf regexp='device\s+=\s+eth1' replace="device = {{ sms_eth_internal }}" backup=yes
-
-#perl -pi -e "s/^\s+disable\s+= yes/ disable = no/" /etc/xinetd.d/tftp
-  - name: Enable tftp service for computing node on master
-    replace: dest=/etc/xinetd.d/tftp regexp='^\s+disable\s+= yes' replace="disable = no" backup=yes
-
-#ifconfig ${sms_eth_internal} ${sms_ip} netmask ${internal_netmask} up
-  - name: Enable internal interface for provisioning on master
-    command: "ifconfig {{ sms_eth_internal }} {{ sms_ip }} netmask {{ internal_netmask }} up"
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - enable_ifup == false
-      - enable_dhcpd_server == false
-
-#systemctl restart xinetd
-  - name: Restart xinetd on master
-    service: name=xinetd state=restarted
-
-#systemctl enable mariadb.service
-  - name: Enable mariadb.service on master
-    service: name=mariadb.service enabled=yes
-    
-#systemctl restart mariadb
-  - name: Restart mariadb on master
-    service: name=mariadb state=restarted
-
-#systemctl enable httpd.service
-  - name: Enable httpd.service on master
-    service: name=httpd.service enabled=yes
-
-#systemctl restart httpd
-  - name: Restart httpd on master
-    service: name=httpd state=restarted
-
-#Todo:
-#if [ ! -z ${BOS_MIRROR+x} ]; then
-#     export YUM_MIRROR=${BOS_MIRROR}
-
-  when:
-    - inventory_hostname in groups[ nt_sms ]
-    - enable_warewulf == true
-#fi
-# -------------------------------------------------
-# Create compute image for Warewulf (Section 3.7.1)
-# -------------------------------------------------
-
-# export WW_CONF=/etc/warewulf/bootstrap.conf
-- block:
-
-  - name: Touch ~/.bashrc on master
-    file: path="{{ ansible_home }}/.bashrc" state=touch
-    when:
-      - enable_warewulf == true
-
-  - name: "Add environment variable export CHROOT={{compute_chroot_loc}} on master"
-    lineinfile:
-      path: "{{ ansible_home }}/.bashrc"
-      state: present
-      backrefs: no
-      regexp: '^export CHROOT="{{ compute_chroot_loc }}$'
-      line: 'export CHROOT="{{ compute_chroot_loc }}"'
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-#wwmkchroot centos-7 $CHROOT
-- name: Build initial chroot image on master
-  command: wwmkchroot centos-7 "{{ compute_chroot_loc }}"
-  register: result
-  failed_when: result.rc not in [0, 1]
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-# ----------------------------------------------
-# Customize system configuration (Section 3.7.3)
-# ----------------------------------------------
-#wwinit database
-- name: initialize database on master
-  command: wwinit database
-  register: result
-  failed_when: result.rc not in [0]
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-#wwinit ssh_keys
-- name: Generate cluster ssh keys on master
-  command: wwinit ssh_keys
-  register: result
-  failed_when: result.rc not in [0]
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-#cat ~/.ssh/cluster.pub >> $CHROOT/root/.ssh/authorized_keys
-- name: Create ~/.ssh  on a computing node
-  file: path="{{ ansible_home }}/.ssh" state=directory mode=0700
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == true
-
-- name: Copy ~/.ssh/cluster.pub to /tmp to copy the key on master
-  command: cp "{{ ansible_home }}/.ssh/cluster.pub" "/tmp/cluster.pub"
-  register: result
-  failed_when: result.rc not in [0]
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-#- name: Fetch /tmp/cluster.pub in sms to a ansible local /tmp
-#  fetch:
-#    src: /tmp/cluster.pub
-#    dest: /tmp/cluster/cluster.pub
-#    flat: yes
-#  when:
-#    - inventory_hostname in groups[nt_sms]
-#    - enable_warewulf == true
-
-- name: Copy /tmp/cluster.pub in ansible local to a computing node
-  copy: src=/tmp/cluster.pub dest="{{ ansible_home }}/.ssh/cluster.pub"
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == true
-
-- name: Add cluster.pub to authorized_keys on a computing node
-  lineinfile:
-    path: '/root/.ssh/authorized_keys'
-    state: present
-    backrefs: no
-    create: yes
-    line: "{{ lookup('file', '/tmp/cluster.pub') }}"
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == true
-
-- name: "Remove the temporary file on master"
-  file:
-    state: absent
-    path: "/tmp/cluster.pub"
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
 # ----------------------------
 # Import files (Section 3.7.5)
 # ----------------------------
@@ -334,6 +173,19 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
+# Add additional modules that should be loaded by modprobe
+- name: Add modprobe += "{{ additional_modules }}" to WW_CONF
+  lineinfile:
+    path: /etc/warewulf/bootstrap.conf
+    state: present
+    backrefs: no
+    regexp: '^modprobe \+= "{{ additional_modules }}"$'
+    line: "modprobe += {{ additional_modules }}"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+    - additional_modules != ''
+
 # wwbootstrap `uname -r`
 - name: Execute wwbootstrap `uname -r` on master
   shell: wwbootstrap `uname -r`
@@ -412,6 +264,16 @@
 # for ((i=0; i<$num_computes; i++)) ; do
 #    wwsh -y node new ${c_name[i]} --ipaddr=${c_ip[i]} --hwaddr=${c_mac[i]} -D ${eth_provision}
 # done
+
+- name: Delete nodes from warewulf data store on master first for idempotence
+  shell: wwsh -d -v -y node delete "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
+  register: result
+  ignore_errors: yes
+  with_items: "{{ compute_nodes }}"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
 - name: Add nodes to warewulf data store on master
   shell: wwsh -d -v -y node new "{{ item.c_name }}" --ipaddr="{{ item.c_ip }}" --hwaddr="{{ item.c_mac }}" -D "{{ eth_provision }}"
   register: result
@@ -462,7 +324,13 @@
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_ganglia == true
-# fi
+    # fi
+
+- name: Mount the nfs on the compute nodes
+  shell: mount -a
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
 
 #systemctl restart dhcpd
 - name: Start dhcpd on master
@@ -492,44 +360,3 @@
       - inventory_hostname in groups[nt_sms]
       - enable_ipmisol == true
       - enable_warewulf == true
-#fi
-
-# -------------------------------------------------------------
-# Allow for optional sleep to wait for provisioning to complete
-# -------------------------------------------------------------
-#sleep ${provision_wait}
-- name: Sleep to wait for provisioning to complete on master
-  command: sleep "{{ provision_wait }}"
-  register: result
-  failed_when: result.rc not in [0]
-  when: 
-    - inventory_hostname in groups[ nt_sms ]
-    - enable_warewulf == true
-
-#wwsh file resync passwd shadow group
-- name: Warewulf sync user configuration files on master
-  shell: wwsh -d -v file resync passwd shadow group
-  register: result
-  failed_when: result.rc not in [0]
-  when: 
-    - inventory_hostname in groups[ nt_sms ]
-    - enable_warewulf == true
-
-#sleep 2
-- name: Sleep to wait on master
-  command: sleep 2
-  register: result
-  failed_when: result.rc not in [0]
-  when: 
-    - inventory_hostname in groups[ nt_sms ]
-    - enable_warewulf == true
-
-#pdsh -w c[1-4] /warewulf/bin/wwgetfiles 
-- name: After re-syncing to warewulf of file modifications on a computing node
-  shell: /warewulf/bin/wwgetfiles 
-  register: result
-  failed_when: result.rc not in [0]
-  when:
-    - inventory_hostname in groups[ nt_cnodes ]
-    - enable_warewulf == true
-

@@ -43,6 +43,7 @@
 
   roles:
     - common
+    - warewulf-init
     - net-eth
     - net-ib
     - net-infinipath
@@ -79,7 +80,7 @@
     - third-party-libs-gnu7
     - third-party-libs-intel
     - imb
-    - warewulf
     - slurm-client
+    - warewulf-final
     # - booting-computing-nodes/
 
