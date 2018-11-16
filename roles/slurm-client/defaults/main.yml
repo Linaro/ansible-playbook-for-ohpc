@@ -4,3 +4,5 @@
 #roles/slurm-client/defaults/main.yml
 #
 
+slurm_mpi_default: 'none'
+slurm_max_time: 'INFINITE'

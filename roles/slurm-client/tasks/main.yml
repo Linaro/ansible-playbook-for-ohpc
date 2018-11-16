@@ -61,19 +61,24 @@
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
-#perl -pi -e "s/ControlMachine=\S+/ControlMachine=${sms_name}/" /etc/slurm/slurm.conf
-- name: Identify resource manager hostname on master
-  replace: dest=/etc/slurm/slurm.conf regexp='ControlMachine=\S+' replace="ControlMachine={{ sms_name }}" backup=yes
-  when:
-    ( inventory_hostname in groups[nt_sms] ) or
-    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
-
 - block:
+  - name: Identify resource manager hostname on master
+    replace: dest=/etc/slurm/slurm.conf regexp='ControlMachine=\S+' replace="ControlMachine={{ sms_name }}" backup=yes
 
   - name: slum configuration on master and computing node    # Todo:It may not be written here
     replace: dest=/etc/slurm/slurm.conf regexp='^NodeName=(\S+).+State=(\S+)' replace="NodeName={{ compute_prefix }}[1-{{ num_computes }}] State=\2" backup=yes
+
   - name: slum configuration on master and computing node    # Todo:It may not be written here
     replace: dest=/etc/slurm/slurm.conf regexp='^PartitionName=normal Nodes=(\S+)' replace="PartitionName=normal Nodes={{ compute_prefix }}[1-{{ num_computes }}]" backup=yes
+
+  - name: Change Max Time to infinite
+    replace: dest=/etc/slurm/slurm.conf regexp='MaxTime=(\d+:\d+:\d+)' replace="MaxTime={{ slurm_max_time }}" backup=yes
+
+  - name: FastSchedule to 0 so nodes report their architecture
+    replace: dest=/etc/slurm/slurm.conf regexp='^FastSchedule=(\d+)' replace="FastSchedule=0" backup=yes
+
+  - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
+    replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
 
   when: 
     ( ( inventory_hostname in groups[nt_sms] ) or
@@ -81,12 +86,23 @@
     ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
 
 - block:
+  - name: Identify resource manager hostname on master
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='ControlMachine=(\S+)' replace="ControlMachine={{ sms_name }}" backup=yes
 
   - name: slum configuration on master    # Todo:It may not be written here
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^NodeName=(\S+).+State=(\S+)' replace="NodeName={{ compute_prefix }}[1-{{ num_computes }}] State=\2" backup=yes
 
   - name: slum configuration on master     # Todo:It may not be written here
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^PartitionName=normal Nodes=(\S+)' replace="PartitionName=normal Nodes={{ compute_prefix }}[1-{{ num_computes }}]" backup=yes
+
+  - name: Change Max Time to infinite
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='MaxTime=(\d+:\d+:\d+)' replace="MaxTime={{ slurm_max_time }}" backup=yes
+
+  - name: FastSchedule to 0 so nodes report their architecture
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^FastSchedule=(\d+)' replace="FastSchedule=0" backup=yes
+
+  - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
+    replace: dest="{{ compute_chroot_ loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
 
   when: 
     - inventory_hostname in groups[nt_sms]
@@ -110,7 +126,7 @@
 - name: Fetch /etc/munge/munge.key in sms to a ansible local /tmp
   fetch:
     src: /etc/munge/munge.key
-    dest: /tmp/munge.key
+    dest: "{{ role_path }}/munge.key"
     flat: yes
   when:
     - inventory_hostname in groups[nt_sms]
@@ -118,7 +134,7 @@
 
 - name: Copy /etc/munge/munge.key in sms to a compuing node
   copy:
-    src:  /tmp/munge.key
+    src:  "{{ role_path }}/munge.key"
     dest: /etc/munge/munge.key
     owner: munge
     group: munge
@@ -128,7 +144,9 @@
     - enable_warewulf == false
 
 - name: Remove /tmp/munge.key on ansible local
-  local_action: file path=/tmp/munge.key state=absent
+  delegate_to: localhost
+  become: no
+  file: path="{{ role_path }}/munge.key" state=absent
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == false
@@ -203,16 +221,3 @@
   service: name=slurmctld state=started
   when:
     - inventory_hostname in groups[ nt_sms ]
-
-#Start munge on computing node
-- name: Start munge on a computing node
-  service: name=munge state=started
-  when:
-    - inventory_hostname in groups[ nt_cnodes ]
-
-#pdsh -w c[1-4] systemctl start slurmd
-- name: Start slurm clients on a computing node
-  service: name=slurmd state=started
-  when:
-    - inventory_hostname in groups[ nt_cnodes ]
-

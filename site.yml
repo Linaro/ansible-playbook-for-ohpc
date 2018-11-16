@@ -88,4 +88,4 @@
     - slurm-client
     - warewulf-final
     # - booting-computing-nodes/
-
+    - final
