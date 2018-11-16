@@ -1,0 +1,16 @@
+---
+
+#
+#roles/warewulf/vars/main.yml
+#
+
+# Additional time to wait for compute nodes to provision (seconds)
+provision_wait: 180
+
+# Chroot variables
+compute_chroot: centos7.3
+compute_chroot_loc: "/opt/ohpc/admin/images/{{ compute_chroot }}"
+
+# additional arguments to enable optional arguments for bootstrap kernel
+kargs: "acpi_pad.disable=1"
+
