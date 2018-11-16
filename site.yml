@@ -52,6 +52,11 @@
     - ohpc-base
     - lmod
     - slurm-server
+    - clustershell
+    - mrsh
+    - genders
+    - conman
+    - rsyslog
     - nfs
     - ntp
     - lustre-client

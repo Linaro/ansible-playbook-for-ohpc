@@ -1,0 +1,74 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with
+# this work for additional information regarding copyright
+# ownership.
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/genders/tasks/main.yml
+#
+
+#if [[ ${enable_genders} -eq 1 ]];then
+- block:
+
+#     # Install genders
+#     yum -y install genders-ohpc
+  - name: Install genders-ohpc on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - genders-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo -e "${sms_name}\tsms" > /etc/genders
+  - name: Generate a sample genders file(Add file) on master
+    lineinfile:
+      path: /etc/genders
+      state: present
+      backrefs: no
+      create: yes
+      regexp: "^{{ sms_name }}{{ '\t' }}sms$"
+      line: "{{ sms_name }}\tsms"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     for ((i=0; i<$num_computes; i++)) ; do
+#        echo -e "${c_name[$i]}\tcompute,bmc=${c_bmc[$i]}"
+#     done >> /etc/genders
+  - name: Generate a sample genders file(remove existing line) on master
+    lineinfile:
+      path: /etc/genders
+      backrefs: no
+      state: absent
+      regexp: "^{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}$"
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: Generate a sample genders file(add line) on master
+    lineinfile:
+      path: /etc/genders
+      backrefs: no
+      state: present
+      regexp: "^{{ item.c_name }}{{ '\t' }}compute,bmc={{ item.c_bmc }}$"
+      line: "{{ item.c_name }}{{'\t'}}compute,bmc={{ item.c_bmc }}"
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_genders == true
+#fi
+

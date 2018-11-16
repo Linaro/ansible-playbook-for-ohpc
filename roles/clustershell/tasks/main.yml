@@ -1,0 +1,88 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with
+# this work for additional information regarding copyright
+# ownership.
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/clustershell/tasks/main.yml
+#
+
+#if [[ ${enable_clustershell} -eq 1 ]];then
+- block:
+#     # Install clustershell
+#     yum -y install clustershell-ohpc
+  - name: Install clustershell on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - clustershell-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     cd /etc/clustershell/groups.d
+#     mv local.cfg local.cfg.orig
+  - name: Backup /etc/clustershell/groups.d/local.cfg on master
+    command: mv /etc/clustershell/groups.d/local.cfg /etc/clustershell/groups.d/local.cfg.orig
+    register: result
+    failed_when: result.rc not in [0]
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "adm: ${sms_name}" > local.cfg
+  - name: Remove /etc/clustershell/groups.d/local.cfg on master
+    file: path=/etc/clustershell/groups.d/local.cfg state=absent
+
+  - name: Touch /etc/clustershell/groups.d/local.cfg on master
+    file: path=/etc/clustershell/groups.d/local.cfg state=touch
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: "Add administrator to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      create: yes
+      regexp: '^adm{{ d_colon }} {{sms_name}}$'
+      line: "adm{{ d_colon }} {{sms_name}}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "compute: ${compute_prefix}[1-${num_computes}]" >> local.cfg
+  - name: "Add computing nodes to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      regexp: '^compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]$'
+      line: "compute{{ d_colon }} {{ compute_prefix }}[1-{{ num_computes }}]"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     echo "all: @adm,@compute" >> local.cfg
+  - name: "Add all object definition to /etc/clustershell/groups.d/local.cfg on master"
+    lineinfile:
+      path: /etc/clustershell/groups.d/local.cfg
+      state: present
+      backrefs: no
+      regexp: '^all{{ d_colon }} @adm,@compute$'
+      line: "all{{ d_colon }} @adm,@compute"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_clustershell == true
+#fi
+

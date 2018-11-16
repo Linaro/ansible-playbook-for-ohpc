@@ -1,0 +1,76 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with
+# this work for additional information regarding copyright
+# ownership.
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/conman/tasks/main.yml
+#
+# Optionally, enable conman and configure
+#if [[ ${enable_ipmisol} -eq 1 ]];then
+- block:
+#     yum -y install conman-ohpc
+  - name: Install conman-ohpc on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - conman-ohpc
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     for ((i=0; i<$num_computes; i++)) ; do
+#        echo -n 'CONSOLE name="'${c_name[$i]}'" dev="ipmi:'${c_bmc[$i]}'" '
+#        echo 'ipmiopts="'U:${bmc_username},P:${IPMI_PASSWORD:-undefined},W:solpayloadsize'"'
+#     done >> /etc/conman.conf
+  - name: Generate a sample conman file(remove existing line) on master
+    lineinfile:
+      path: /etc/conman.conf
+      backrefs: no
+      state: absent
+      regexp: '^CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colo\
+n }}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"$'
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  - name: "Generate a sample genders file(Add line) on master"
+    lineinfile:
+      path: /etc/conman.conf
+      backrefs: no
+      state: present
+      regexp: '^CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colo\
+n }}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"$'
+      line: 'CONSOLE name="{{ item.c_name }}" dev="ipmi{{ d_colon }}{{ item.c_bmc }} ipmiopts="U{{ d_colon }\
+}{{ bmc_username}},P{{ d_colon }}{{ bmc_password }},W{{ d_colon }}solpayloadsize"'
+    with_items: "{{ compute_nodes }}"
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl enable conman
+  - name: Enable conman on master
+    service: name=conman enabled=yes
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+#     systemctl start conman
+  - name: Start conman on master
+    service: name=conman state=started
+    when:
+      - inventory_hostname in groups[nt_sms]
+
+  when:
+    - enable_ipmisol == true
+#fi
+
