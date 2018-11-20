@@ -35,7 +35,7 @@
 
 #systmctl start rdma
   - name: Start rdma services on master
-    service: name=rdma state=started
+    service: name=rdma state=started enabled=yes
     when:
       - inventory_hostname in groups[nt_sms]
 
@@ -106,65 +106,125 @@
 #     # Enable ib0
 #     cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
 
-  - block:
-
     - name: Copy ifcfg-ib0 on master
-      command: cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts
+      command: "cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0 /etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}"
       register: result
       failed_when: result.rc not in [0]
 
 #     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
     - name: Define local IPoIB address on master
-      replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='master_ipoib' replace="{{ sms_ipoib }}" 
+      replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}" regexp='^DEVICE=(\S+)' replace="DEVICE={{ sms_ipoib_internal }}" 
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+    - name: Define local IPoIB address on master
+      replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}" regexp='master_ipoib' replace="{{ sms_ipoib }}" 
 
 #     perl -pi -e "s/ipoib_netmask/${ipoib_netmask}/" /etc/sysconfig/network-scripts/ifcfg-ib0
     - name: Define local IPoIB netmask on master
-      replace: dest=/etc/sysconfig/network-scripts/ifcfg-ib0 regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
+      replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}" regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
 
 #     ifup ib0
-    - name: Initiate ib0 on master
-      command: ifup ib0
+    - name: Initiate ibX on master
+      command: "ifup {{ sms_ipoib_internal }}"
       register: result
       failed_when: result.rc not in [0]
 
-    when:
-      - enable_dhcpd_server == false      
-
-  - block:
-
-    - name: Create an ifcfg-ib file on master
-      template:
-        src: ifcfg-ib-sms
-        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}" 
-
-    - name: Make {{ sms_ipoib_internal }} up on master
-      command: "ifup {{ sms_ipoib_internal }}" 
-      register: result
-      failed_when: result.rc not in [0]
-
-    when:
-        - enable_dhcpd_server == true      
+    - name: Get ib ifcfg file to give to the cnodes
+      fetch:
+        src: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}"
+        dest: "{{ role_path }}/ifcfg-ib"
+        flat: yes
 
   when:
     - inventory_hostname in groups[nt_sms]
+    - enable_dhcpd_server == false      
     - enable_ipoib == true
     - enable_ifup == true
 #fi
+- block:
+
+  - name: Install InfiniBand support on cnodes
+    yum: name={{ item }} state=latest
+    with_items:
+      - "@Infiniband Support"
+
+  - name: Start RDMA on the cnodes to load all kernel modules
+    service: name=rdma state=started enabled=yes
+
+  - name: Create an ifcfg-ib file on master
+    copy:
+      src: "/opt/ohpc/pub/examples/network/centos/ifcfg-ib0"
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}"
+      remote_src: yes
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="^DEVICE=ib[0-9]" replace="DEVICE={{ cnodes_ipoib_internal }}" 
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - enable_dhcpd_server == false      
+
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_dhcpd_server == false      
+    - enable_ipoib == true
+    - enable_ifup == true
+#fi
+- block:
+
+  - name: Create an ifcfg-ib file on master
+    copy:
+      src: "{{ role_path }}/ifcfg-ib"
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='^DEVICE=(\S+)' replace="DEVICE={{ cnodes_ipoib_internal }}" 
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname 
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="master_ipoib" replace="{{ item.c_ipoib }}" 
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname
+
+  - name: Define local IPoIB netmask on master
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
+
+
+  - name: Make {{ cnodes_ipoib_internal }} up on cnodes 
+    command: "ifup {{ cnodes_ipoib_internal }}" 
+    register: result
+    failed_when: result.rc not in [0]
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname
+
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_dhcpd_server == false
+    - enable_ipoib == true
+    - enable_ifup == true
+    - enable_warewulf == false
 
 - block:
 
   - name: Create an ifcfg-ib file on cnodes
-    template:
-      src: ifcfg-ib-cnodes
+    copy:
+      src: "{{ role_path }}/ifcfg-ib"
       dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
 
   - name: Make {{ cnodes_ipoib_internal }} up on master
-    command: "ifup {{ conodes_ipoib_internal }}" 
+    command: "ifup {{ cnodes_ipoib_internal }}" 
     register: result
     failed_when: result.rc not in [0]
 
   when:
     - inventory_hostname in groups[ nt_cnodes ]
+    - enable_dhcpd_server == true 
     - enable_ipoib == true
     - enable_ifup == true
     - enable_warewulf == false

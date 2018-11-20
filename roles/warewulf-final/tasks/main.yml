@@ -89,38 +89,6 @@
       - inventory_hostname in groups[nt_sms]
       - enable_warewulf == true
 
-
-#     wwsh file import /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
-  - name: Fetch /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww in sms to a ansible local /tmp
-    fetch:
-      src: /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
-      dest: /tmp/ifcfg-ib0.ww
-      flat: yes
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == false
-
-  - name: Copy /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww in sms to a computing node on master
-    copy: src=/tmp/ifcfg-ib0.ww dest=/opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
-
-  - name: Remove /tmp/ifcfg-ib0.ww on ansible local
-    local_action: file path=/tmp/ifcfg-ib0.ww state=absent
-    when:
-      - inventory_hostname in groups[nt_sms]
-      - enable_warewulf == false
-
-#     wwsh -y file set ifcfg-ib0.ww --path=/etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Copy /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww /etc/sysconfig/network-scripts/ifcfg-ib0 on a computing node
-    command: cp /opt/ohpc/pub/examples/network/centos/ifcfg-ib0.ww /etc/sysconfig/network-scripts/ifcfg-ib0
-    register: result
-    failed_when: result.rc not in [0]
-    when:
-      - inventory_hostname in groups[nt_cnodes]
-      - enable_warewulf == false
-
   when:
     - enable_ipoib == true
 
