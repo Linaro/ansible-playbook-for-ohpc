@@ -3,10 +3,3 @@
 #
 #roles/net-ib/vars/main.yml
 #
-
-# Subnet netmask for IPoIB network
-ipoib_netmask: "255.255.255.0"
-
-# IPoIB address for SMS server
-sms_ipoib: "192.168.55.11"
-
