@@ -34,7 +34,7 @@ Since our cluster conforms to what is described in _Cluster Building Recipes_, i
 For coherence purposes, we assume that all nodes use the network device eth1 for the Management Network, eth2 for the Computing Network, and eth3 for the BMC Network.
 
 Network Type|Network Address|Netmask|Ether device
----|---|---|---|---
+---|---|---|---
 Computing Network|192.168.44.0|255.255.255.0|eth2
 Management Network|192.168.33.0|255.255.255.0|eth1
 BMC Network|192.168.66.0 |255.255.255.0|eth3
