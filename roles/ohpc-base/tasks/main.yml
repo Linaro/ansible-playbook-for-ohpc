@@ -59,7 +59,7 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
-- name: Fetch /etc/resolv.conf in sms to a ansible local /tmp
+- name: Fetch /etc/resolv.conf in sms to a ansible local resolv.conf
   fetch:
     src: /etc/resolv.conf
     dest: "{{ role_path }}/resolv.conf"
@@ -68,13 +68,13 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == false
 
-- name: Copy /tmp/resolv.conf in ansible local on a computing node
+- name: Copy resolv.conf in ansible local on a computing node
   copy: src="{{ role_path }}/resolv.conf" dest=/etc/resolv.conf
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
-- name: Remove /tmp/resolv.conf on ansible local
+- name: Remove resolv.conf on ansible local
   local_action: file path="{{ role_path }}/resolv.conf" state=absent
   become: no
   when:

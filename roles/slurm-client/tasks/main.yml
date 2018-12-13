@@ -89,10 +89,10 @@
   - name: Identify resource manager hostname on master
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='ControlMachine=(\S+)' replace="ControlMachine={{ sms_name }}" backup=yes
 
-  - name: slum configuration on master    # Todo:It may not be written here
+  - name: slurm configuration on master    # Todo:It may not be written here
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^NodeName=(\S+).+State=(\S+)' replace="NodeName={{ compute_prefix }}[1-{{ num_computes }}] State=\2" backup=yes
 
-  - name: slum configuration on master     # Todo:It may not be written here
+  - name: slurm configuration on master     # Todo:It may not be written here
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^PartitionName=normal Nodes=(\S+)' replace="PartitionName=normal Nodes={{ compute_prefix }}[1-{{ num_computes }}]" backup=yes
 
   - name: Change Max Time to infinite
@@ -102,11 +102,12 @@
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^FastSchedule=(\d+)' replace="FastSchedule=0" backup=yes
 
   - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
-    replace: dest="{{ compute_chroot_ loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
 
   when: 
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
+    - ansible_machine != "aarch64"
 
 # Note: In typical cases we run this playbook on sms as normal user.
 # We should change the file/directory mode before copying it.

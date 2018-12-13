@@ -142,7 +142,7 @@
     - enable_warewulf == true
 
 # Add additional modules that should be loaded by modprobe
-- name: Add modprobe += "{{ additional_modules }}" to WW_CONF
+- name: Add modprobe additional_modules to WW_CONF
   lineinfile:
     path: /etc/warewulf/bootstrap.conf
     state: present
