@@ -129,9 +129,9 @@
       register: result
       failed_when: result.rc not in [0]
 
-    - name: Get ib ifcfg file to give to the cnodes
+    - name: Get ib ifcfg template to give to the cnodes
       fetch:
-        src: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_ipoib_internal }}"
+        src: "/opt/ohpc/pub/examples/network/centos/ifcfg-ib0"
         dest: "{{ role_path }}/ifcfg-ib"
         flat: yes
 
@@ -141,117 +141,6 @@
     - enable_ipoib == true
     - enable_ifup == true
 #fi
-- block:
-
-  - name: Install InfiniBand support on cnodes
-    yum: name={{ item }} state=latest
-    with_items:
-      - "@Infiniband Support"
-
-  - name: Start RDMA on the cnodes to load all kernel modules
-    service: name=rdma state=started enabled=yes
-
-  - name: Create an ifcfg-ib file on master
-    copy:
-      src: "/opt/ohpc/pub/examples/network/centos/ifcfg-ib0"
-      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}"
-      remote_src: yes
-
-#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Define local IPoIB address on cnode
-    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="^DEVICE=ib[0-9]" replace="DEVICE={{ cnodes_ipoib_internal }}" 
-    with_items: "{{ compute_ipoib }}"
-    when:
-      - enable_dhcpd_server == false      
-
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_dhcpd_server == false      
-    - enable_ipoib == true
-    - enable_ifup == true
-#fi
-- block:
-
-  - name: Create an ifcfg-ib file on master
-    copy:
-      src: "{{ role_path }}/ifcfg-ib"
-      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
-
-#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Define local IPoIB address on cnode
-    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='^DEVICE=(\S+)' replace="DEVICE={{ cnodes_ipoib_internal }}" 
-    with_items: "{{ compute_ipoib }}"
-    when:
-      - inventory_hostname == item.c_hostname 
-
-#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
-  - name: Define local IPoIB address on cnode
-    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="master_ipoib" replace="{{ item.c_ipoib }}" 
-    with_items: "{{ compute_ipoib }}"
-    when:
-      - inventory_hostname == item.c_hostname
-
-  - name: Define local IPoIB netmask on master
-    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
-
-
-  - name: Make {{ cnodes_ipoib_internal }} up on cnodes 
-    command: "ifup {{ cnodes_ipoib_internal }}" 
-    register: result
-    failed_when: result.rc not in [0]
-    with_items: "{{ compute_ipoib }}"
-    when:
-      - inventory_hostname == item.c_hostname
-
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_dhcpd_server == false
-    - enable_ipoib == true
-    - enable_ifup == true
-    - enable_warewulf == false
-
-- block:
-
-  - name: Create an ifcfg-ib file on cnodes
-    copy:
-      src: "{{ role_path }}/ifcfg-ib"
-      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
-
-  - name: Make {{ cnodes_ipoib_internal }} up on master
-    command: "ifup {{ cnodes_ipoib_internal }}" 
-    register: result
-    failed_when: result.rc not in [0]
-
-  when:
-    - inventory_hostname in groups[ nt_cnodes ]
-    - enable_dhcpd_server == true 
-    - enable_ipoib == true
-    - enable_ifup == true
-    - enable_warewulf == false
-
-# Optionally enable opensm subnet manager
-#if [[ ${enable_opensm} -eq 1 ]];then
-- block:
-
-#     yum -y install opensm
-  - name: Install opensm on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - opensm
-
-#     systemctl enable opensm
-  - name: Enable opensm on master
-    service: name=opensm enabled=yes
-
-#     systemctl start opensm
-  - name: Start opensm on master
-    service: name=opensm state=started
-
-  when: 
-    - enable_opensm == true
-    - inventory_hostname in groups[nt_sms]
-#fi
-
 
 - block:
   #yum -y --installroot=$CHROOT groupinstall "InfiniBand Support"
@@ -281,7 +170,7 @@
       - enable_warewulf == true
 
   - name: enable rdma on a computing node
-    service: name=rdma enabled=yes
+    service: name=rdma enabled=yes state=started
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false
@@ -369,6 +258,91 @@
 
   when:
     - enable_mellanox_ib == true  
+- block:
+
+  - name: Create an ifcfg-ib file on compute nodes
+    copy:
+      src: "{{ role_path }}/ifcfg-ib"
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='^DEVICE=(\S+)' replace="DEVICE={{ cnodes_ipoib_internal }}" 
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname 
+
+#     perl -pi -e "s/master_ipoib/${sms_ipoib}/" /etc/sysconfig/network-scripts/ifcfg-ib0
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="master_ipoib" replace="{{ item.c_ipoib }}" 
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname
+
+  - name: Define local IPoIB netmask on master
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp='ipoib_netmask' replace="{{ ipoib_netmask }}" 
+
+  - name: Define local IPoIB address on cnode
+    replace: dest="/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" regexp="^BOOTPROTO=static" replace="BOOTPROTO=none" 
+
+  - name: Make {{ cnodes_ipoib_internal }} up on cnodes 
+    command: "ifup {{ cnodes_ipoib_internal }}" 
+    register: result
+    failed_when: result.rc not in [0]
+    with_items: "{{ compute_ipoib }}"
+    when:
+      - inventory_hostname == item.c_hostname
+
+  when:
+    - inventory_hostname in groups[nt_cnodes]
+    - enable_dhcpd_server == false
+    - enable_ipoib == true
+    - enable_ifup == true
+    - enable_warewulf == false
+
+- block:
+
+  - name: Create an ifcfg-ib file on cnodes
+    copy:
+      src: "{{ role_path }}/ifcfg-ib"
+      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ cnodes_ipoib_internal }}" 
+
+  - name: Make {{ cnodes_ipoib_internal }} up on master
+    command: "ifup {{ cnodes_ipoib_internal }}" 
+    register: result
+    failed_when: result.rc not in [0]
+
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+    - enable_dhcpd_server == true 
+    - enable_ipoib == true
+    - enable_ifup == true
+    - enable_warewulf == false
+
+# Optionally enable opensm subnet manager
+#if [[ ${enable_opensm} -eq 1 ]];then
+- block:
+
+#     yum -y install opensm
+  - name: Install opensm on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - opensm
+
+#     systemctl enable opensm
+  - name: Enable opensm on master
+    service: name=opensm enabled=yes
+
+#     systemctl start opensm
+  - name: Start opensm on master
+    service: name=opensm state=started
+
+  when: 
+    - enable_opensm == true
+    - inventory_hostname in groups[nt_sms]
+#fi
+
+
 
 #perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' /etc/security/limits.conf
 #perl -pi -e 's/# End of file/\* hard memlock unlimited\n$&/s' /etc/security/limits.conf

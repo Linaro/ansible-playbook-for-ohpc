@@ -129,7 +129,7 @@
 - name: Generate cluster ssh keys on master
   command: wwinit ssh_keys
   register: result
-  failed_when: result.rc not in [0]
+  ignore_errors: true
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
@@ -159,15 +159,15 @@
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
-- name: Copy ~/.ssh/cluster.pub to /tmp to copy the key on master
-  command: cp "/root/.ssh/cluster.pub" "/{{ compute_chroot_loc }}/root/cluster.pub"
+- name: Copy /root/.ssh/cluster.pub to /tmp to copy the key on master
+  command: cp "/root/.ssh/cluster.pub" "{{ compute_chroot_loc }}/root/cluster.pub"
   register: result
   failed_when: result.rc not in [0]
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
-- name: Fetch /tmp/cluster.pub in sms to a ansible local /tmp
+- name: Fetch cluster.pub in sms to a ansible local cluster.pub
   fetch:
     src: /root/.ssh/cluster.pub
     dest: "{{ role_path }}/cluster.pub"
@@ -176,8 +176,8 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == false
 
-# stateful
-- name: Copy ~/.ssh/cluster.pub to /tmp to copy the key on master
+# stateless
+- name: Copy ansible local cluster.pub to /root/.ssh/cluster.pub on master
   copy:
     src: "{{ role_path }}/cluster.pub"
     dest: /root/.ssh/cluster.pub
@@ -185,16 +185,21 @@
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
-- name: Add cluster.pub to authorized_keys on a computing node
-  lineinfile:
-    path: "{{ compute_chroot_loc }}/root/.ssh/authorized_keys"
-    state: present
-    backrefs: no
-    create: yes
-    line: "{{ lookup('file', '{{ role_path }}/cluster.pub') }}"
+- name: Copy /root/.ssh/cluster.pub to "{{ compute_chroot_loc }}/root/cluster.pub" to copy the key on master
+  command: cp "/root/.ssh/cluster.pub" "{{ compute_chroot_loc }}/root/cluster.pub"
+  register: result
+  failed_when: result.rc not in [0]
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
+
+- name: Copy cluster.pub to role path to lookup the key file on master
+  command: cp "/root/.ssh/cluster.pub" "{{ role_path }}/cluster.pub"
+  register: result
+  failed_when: result.rc not in [0]
+  when:
+     - inventory_hostname in groups[nt_sms]
+     - enable_warewulf == true
 
 # stateful
 - name: Add cluster.pub to authorized_keys on a computing node
