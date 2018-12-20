@@ -30,6 +30,7 @@
     state: present
   when:
     - inventory_hostname in groups[nt_cnodes]
+    - enable_nfs_home == true
 
 #echo "${sms_ip}:/opt/ohpc/pub /opt/ohpc/pub nfs nfsvers=3 0 0" >> $CHROOT/etc/fstab
 - name: Add NFS client to mount /opt/ohpc/pub on a computing node
@@ -41,17 +42,6 @@
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_nfs_ohpc == true
-
-- name: NFS client to mount /home on a computing node
-  mount:
-    name: "/home"
-    src: "{{ sms_ip }}{{ d_colon }}/home"
-    fstype: nfs
-    opts: "rsize=1024,wsize=1024,cto"
-    state: mounted
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_nfs_home == true
 
 #echo "/home *(rw,no_subtree_check,fsid=10,no_root_squash)" >> /etc/exports
 - name: Export /home on master
