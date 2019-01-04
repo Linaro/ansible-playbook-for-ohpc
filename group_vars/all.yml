@@ -83,7 +83,7 @@ enable_mpi_opa: false
 enable_clustershell: true
 enable_ipmisol: false
 enable_opensm: false
-enable_mellanox_ib: true
+enable_mellanox_ib: false
 enable_linux_ib: false
 enable_ipoib: false
 enable_ganglia: true
