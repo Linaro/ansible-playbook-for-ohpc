@@ -60,3 +60,9 @@
   when:
     - inventory_hostname in groups[ nt_cnodes ]
 
+#Restart munge on computing nodes
+- name: Start munge on a computing node
+  service: name=munge state=restarted
+  when:
+    - inventory_hostname in groups[ nt_cnodes ]
+
