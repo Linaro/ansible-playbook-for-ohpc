@@ -272,6 +272,8 @@ The following are the configuration variables with their default values. You can
  - enable_nfs_home: true/false  (default: true)
    To export `/home` directory from SMS, set this variable true.
    It would be advisable to set this *false* in the Linaro Lab because it is a diskful cluster and you would not want to overshadow the `/home` directory of a member node.
+ - force_service : true/false (default: false)
+   This flag sets ReturnToService in slurm.conf to 2 (instead of the default 0), meaning that in case a node is DOWN (for whatever reason) upon registration (and if its configuration is valid) its state is reset to UP (see https://slurm.schedmd.com/slurm.conf.html)
  - internal_default_lease_time
    default DHCP lease time.
  - internal_max_lease_time
