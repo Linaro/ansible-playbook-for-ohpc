@@ -68,16 +68,29 @@
         - atk
         - gcc-gfortran
         - tk
+        - python-devel
+        - pciutils
+        - make
+        - kernel-devel
+        - redhat-rpm-config
+        - rpm-build
+        - gcc
+        - libxml2-python
+        - tcsh
+        - tcl
       when:
         - inventory_hostname in groups[nt_sms]
 
 #./mnt/mlnxofedinstall --all  --force
     - name: run a script "/mnt/mlnxofedinstall --force" on master
-      shell: /mnt/mlnx/mlnxofedinstall --force
+      shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}"
       register: result
       failed_when: result.rc not in [0]
       when:
         - inventory_hostname in groups[nt_sms]
+
+    - name: Dump MOFED Install log
+      debug: var=result
  
 # sleep 2 && shutdown -r now   
     - name: restart sms machine
@@ -99,6 +112,36 @@
         - enable_reboot == true        
   when:
     - enable_mellanox_ib == true
+
+# Optionally enable opensm subnet manager
+#if [[ ${enable_opensm} -eq 1 ]];then
+- block:
+
+#     yum -y install opensm
+  - name: Install opensm on master
+    yum: name={{ item }} state=latest
+    with_items:
+      - opensm
+
+  - name: Enable virtualization in OpenSM
+    lineinfile:
+      path: /etc/opensm/opensm.conf
+      line: 'virt_enabled 2'
+      create: yes
+    when: enable_socket_direct == true
+
+#     systemctl enable opensm
+  - name: Enable opensm on master
+    service: name=opensm enabled=yes
+
+#     systemctl start opensm
+  - name: Start opensm on master
+    service: name=opensm state=started
+
+  when:
+    - enable_opensm == true
+    - inventory_hostname in groups[nt_sms]
+#fi
 
 #if [[ ${enable_ipoib} -eq 1 ]];then
 - block:
@@ -191,7 +234,7 @@
         - enable_warewulf == true
 
     - name: run a script /mnt/mlnxofedinstall --force to computing node images on master
-      shell: "{{ compute_chroot_loc }}/mnt/mlnx/mlnxofedinstall --force"
+      shell: "{{ compute_chroot_loc }}/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}"
       register: result
       failed_when: result.rc not in [0]
       when:
@@ -230,7 +273,7 @@
         - enable_warewulf == false
 
     - name: run a script "/mnt/mlnxofedinstall --force" on computing node
-      shell: /mnt/mlnx/mlnxofedinstall --force
+      shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}" 
       register: result
       failed_when: result.rc not in [0]
       when:
@@ -258,6 +301,7 @@
 
   when:
     - enable_mellanox_ib == true  
+
 - block:
 
   - name: Create an ifcfg-ib file on compute nodes
@@ -318,30 +362,6 @@
     - enable_ipoib == true
     - enable_ifup == true
     - enable_warewulf == false
-
-# Optionally enable opensm subnet manager
-#if [[ ${enable_opensm} -eq 1 ]];then
-- block:
-
-#     yum -y install opensm
-  - name: Install opensm on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - opensm
-
-#     systemctl enable opensm
-  - name: Enable opensm on master
-    service: name=opensm enabled=yes
-
-#     systemctl start opensm
-  - name: Start opensm on master
-    service: name=opensm state=started
-
-  when: 
-    - enable_opensm == true
-    - inventory_hostname in groups[nt_sms]
-#fi
-
 
 
 #perl -pi -e 's/# End of file/\* soft memlock unlimited\n$&/s' /etc/security/limits.conf
