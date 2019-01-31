@@ -178,7 +178,7 @@ Connection to c2 closed.
 
 Please execute the following command to download this playbook:
 ```
-$ git clone https://github.com/takekato/ansible-playbook-for-ohpc.git
+$ git clone https://github.com/Linaro/ansible-playbook-for-ohpc.git
 ```
 Move to the directory where the downloaded playbook is. In the instructions below, we assume this directory to be the current working directory.
 ```
