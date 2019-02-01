@@ -244,6 +244,12 @@ The following are the configuration variables with their default values. You can
    Installs packages specifically for Intel's interconnect if true.
  - enable_ipoib: true/false  (default: false)
    \[Not fully tested; feedback welcome\] Sets up IP over IB if true.
+ - enable_mellanox_ib: true/false (default: false)
+   Installs Mellanox OFED provided by URL "mellanox_iso_url" and filename "mellanox_iso_file", additional installation options (when calling mlnxofedinstall) are provided by variable "mofed_install_opts"
+ - enable_linux_ib: true/false (default: false)
+   Installs Open Source Infiniband Support for the system. This is not compatible with socket direct, and will not update the IB card firmware (thus no need to reboot).
+ - enable_socket_direct: true/false (default: false)
+   Enables Socket Direct support for Mellanox IB Adapters via the "virtualization" option in OpenSM. This needs enable_opensm to be true as well, and requires MOFED since the upstream OpenSM in the repos does not have this feature.
  - enable_ganglia: true/false  (default: true)
    Installs ganglia packages if true.
  - enable_genders: true/false  (default: true)
