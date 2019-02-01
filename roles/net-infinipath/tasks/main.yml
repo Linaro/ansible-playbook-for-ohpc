@@ -22,27 +22,31 @@
 
 #yum -y install infinipath-psm
 - name: Install infinipath-psm on master
-  yum: name={{ item }} state=latest
-  with_items:
-    - infinipath-psm
+  yum:
+    state: latest
+    name:
+      - infinipath-psm
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_intel_packages == true
 
 #yum -y --installroot=$CHROOT install infinipath-psm
 - name: Install infinipath-psm to computing node images on master
-  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-  with_items:
-    - infinipath-psm
+  yum:
+    state: latest
+    installroot: "{{ compute_chroot_loc }}"
+    name:
+      - infinipath-psm
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
     - enable_intel_packages == true
 
 - name: Install infinipath-psm on computing nodes
-  yum: name={{ item }} state=latest
-  with_items:
-    - infinipath-psm
+  yum:
+    state: latest
+    name:
+      - infinipath-psm
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false

@@ -25,10 +25,11 @@
 #     yum -y install openmpi-psm2-gnu8-ohpc mvapich2-psm2-gnu8-ohpc
 #fi
 - name: Install default MPI Stacks on master and a development node
-  yum: name={{ item }} state=latest
-  with_items:
-    - "mpich-gnu{{ gnu_version }}-ohpc"
-    - "ohpc-gnu{{ gnu_version }}-mpich-parallel-libs"
+  yum:
+    state: latest
+    name:
+      - "mpich-gnu{{ gnu_version }}-ohpc"
+      - "ohpc-gnu{{ gnu_version }}-mpich-parallel-libs"
   when: 
     ( enable_mpi_defaults == true ) and
     ( enable_mpi_opa == false ) and
@@ -36,10 +37,12 @@
     ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) ) )
 
 - name: Install default MPI Stacks for a computing image on master
-  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-  with_items:
-    - "mpich-gnu{{ gnu_version }}-ohpc"
-    - "ohpc-gnu{{ gnu_version }}-mpich-parallel-libs"
+  yum:
+    state: latest
+    installroot: "{{ compute_chroot_loc }}"
+    name:
+      - "mpich-gnu{{ gnu_version }}-ohpc"
+      - "ohpc-gnu{{ gnu_version }}-mpich-parallel-libs"
   when: 
     - enable_mpi_defaults == true
     - enable_mpi_opa == false

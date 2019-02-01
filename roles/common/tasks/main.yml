@@ -25,11 +25,12 @@
 # combination of the package installation.
 #
 - name: Install basic packages to perfrom OpenHPC installation
-  yum: name={{ item }} state=latest
-  with_items:
-    - perl
-    - dhcp
-    - firewalld
+  yum:
+    state: latest
+    name:
+      - perl
+      - dhcp
+      - firewalld
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or

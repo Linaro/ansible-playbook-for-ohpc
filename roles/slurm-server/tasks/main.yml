@@ -25,8 +25,9 @@
 # -------------------------------------------------------------
 #yum -y groupinstall ohpc-slurm-server
 - name: Install ohpc-slurm-server on master
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-slurm-server
+  yum:
+    state: latest
+    name:
+      - ohpc-slurm-server
   when:
     - inventory_hostname in groups[nt_sms]

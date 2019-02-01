@@ -26,9 +26,10 @@
 #     # Install genders
 #     yum -y install genders-ohpc
   - name: Install genders-ohpc on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - genders-ohpc
+    yum:
+      state: latest
+      name:
+        - genders-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
 

@@ -22,17 +22,20 @@
 
 #yum -y --installroot=$CHROOT groupinstall ohpc-slurm-client
 - name: Install ohpc-slurm-client for computing node images on master
-  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-  with_items:
-    - ohpc-slurm-client
+  yum:
+    state: latest
+    installroot: "{{ compute_chroot_loc }}"
+    name:
+      - ohpc-slurm-client
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
 - name: Install ohpc-slurm-client on computing nodes
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-slurm-client
+  yum:
+    state: latest
+    name:
+      - ohpc-slurm-client
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false

@@ -32,19 +32,22 @@
 
 #     yum -y --installroot=$CHROOT install nagios-plugins-all-ohpc nrpe-ohpc
   - name: Install packages Nagios plugins for computing node images on master
-    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - nagios-plugins-all-ohpc
-      - nrpe-ohpc
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - nagios-plugins-all-ohpc
+        - nrpe-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
       - enable_warewulf == true
 
   - name: Install packages Nagios plugins on a computing node
-    yum: name={{ item }} state=latest
-    with_items:
-      - nagios-plugins-all-ohpc
-      - nrpe-ohpc
+    yum:
+      state: latest
+      name:
+        - nagios-plugins-all-ohpc
+        - nrpe-ohpc
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false

@@ -29,23 +29,26 @@
 #yum -y groupinstall ohpc-gnu8-runtimes
 - block:
   - name: Install packages 3rd Party Libraries and Tools on master and a development node
-    yum: name={{ item }} state=latest
-    with_items:
-      - "ohpc-gnu{{ gnu_version }}-serial-libs"
-      - "ohpc-gnu{{ gnu_version }}-io-libs"
-      - "ohpc-gnu{{ gnu_version }}-python-libs"
-      - "ohpc-gnu{{ gnu_version }}-runtimes"
+    yum:
+      state: latest
+      name:
+        - "ohpc-gnu{{ gnu_version }}-serial-libs"
+        - "ohpc-gnu{{ gnu_version }}-io-libs"
+        - "ohpc-gnu{{ gnu_version }}-python-libs"
+        - "ohpc-gnu{{ gnu_version }}-runtimes"
     when: 
       ( inventory_hostname in groups[nt_devnodes] ) or
       ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
 
   - name: Install packages 3rd Party Libraries and Tools for a computing image on master
-    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - "ohpc-gnu{{ gnu_version }}-serial-libs"
-      - "ohpc-gnu{{ gnu_version }}-io-libs"
-      - "ohpc-gnu{{ gnu_version }}-python-libs"
-      - "ohpc-gnu{{ gnu_version }}-runtimes"
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - "ohpc-gnu{{ gnu_version }}-serial-libs"
+        - "ohpc-gnu{{ gnu_version }}-io-libs"
+        - "ohpc-gnu{{ gnu_version }}-python-libs"
+        - "ohpc-gnu{{ gnu_version }}-runtimes"
     when: 
       - inventory_hostname in groups[nt_sms] 
       - enable_warewulf == true

@@ -27,9 +27,10 @@
 - block:
 #yum -y groupinstall "InfiniBand Support"
   - name: Install InfiniBand support on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - "@InfiniBand Support"
+    yum:
+      state: latest
+      name:
+        - "@InfiniBand Support"
     when:
       - inventory_hostname in groups[nt_sms]
 
@@ -60,24 +61,25 @@
 
 #yum install required packages for installing MLNX_OFED_LINUX on master
     - name: Install  on master
-      yum: name={{ item }} state=latest
-      with_items:
-        - pciutils
-        - lsof
-        - gtk2
-        - atk
-        - gcc-gfortran
-        - tk
-        - python-devel
-        - pciutils
-        - make
-        - kernel-devel
-        - redhat-rpm-config
-        - rpm-build
-        - gcc
-        - libxml2-python
-        - tcsh
-        - tcl
+      yum:
+        state: latest
+        name:
+          - pciutils
+          - lsof
+          - gtk2
+          - atk
+          - gcc-gfortran
+          - tk
+          - python-devel
+          - pciutils
+          - make
+          - kernel-devel
+          - redhat-rpm-config
+          - rpm-build
+          - gcc
+          - libxml2-python
+          - tcsh
+          - tcl
       when:
         - inventory_hostname in groups[nt_sms]
 
@@ -119,9 +121,10 @@
 
 #     yum -y install opensm
   - name: Install opensm on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - opensm
+    yum:
+      state: latest
+      name:
+        - opensm
 
   - name: Enable virtualization in OpenSM
     lineinfile:
@@ -188,17 +191,20 @@
 - block:
   #yum -y --installroot=$CHROOT groupinstall "InfiniBand Support"
   - name: Install InfiniBand support to computing node images on master
-    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - "@InfiniBand Support"
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - "@InfiniBand Support"
     when:
       - inventory_hostname in groups[nt_sms]
       - enable_warewulf == true
 
   - name: Install InfiniBand support on computing nodes
-    yum: name={{ item }} state=latest
-    with_items:
-      - "@InfiniBand Support"
+    yum:
+      state: latest
+      name:
+        - "@InfiniBand Support"
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false
@@ -260,14 +266,15 @@
 
 #yum install pciutils lsof gtk2 atk gcc-gfortran tk
     - name: Install required packages for installing MLNX_OFED_LINUX on computing node
-      yum: name={{ item }} state=latest
-      with_items:
-        - pciutils
-        - lsof
-        - gtk2
-        - atk
-        - gcc-gfortran
-        - tk
+      yum:
+        state: latest
+        name:
+          - pciutils
+          - lsof
+          - gtk2
+          - atk
+          - gcc-gfortran
+          - tk
       when:
         - inventory_hostname in groups[nt_cnodes]
         - enable_warewulf == false

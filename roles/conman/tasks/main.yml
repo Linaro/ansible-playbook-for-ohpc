@@ -24,9 +24,10 @@
 - block:
 #     yum -y install conman-ohpc
   - name: Install conman-ohpc on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - conman-ohpc
+    yum:
+      state: latest
+      name:
+        - conman-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
 

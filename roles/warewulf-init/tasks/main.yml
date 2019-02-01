@@ -22,9 +22,10 @@
 
 #yum -y groupinstall ohpc-warewulf
 - name: Install ohpc-warewulf on master
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-warewulf
+  yum: 
+    state: latest
+    name:
+      - ohpc-warewulf
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true

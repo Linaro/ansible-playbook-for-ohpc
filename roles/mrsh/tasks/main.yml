@@ -25,19 +25,21 @@
 #     # Install mrsh
 #     yum -y install mrsh-ohpc mrsh-rsh-compat-ohpc
   - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - mrsh-ohpc
-      - mrsh-rsh-compat-ohpc
+    yum:
+      state: latest
+      name:
+        - mrsh-ohpc
+        - mrsh-rsh-compat-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
 
   - name: Install mrsh-ohpc mrsh-rsh-compat-ohpc mrsh-server-ohpc on a computing node
-    yum: name={{ item }}  state=latest
-    with_items:
-      - mrsh-ohpc
-      - mrsh-rsh-compat-ohpc
-      - mrsh-server-ohpc
+    yum:
+      state: latest
+      name:
+        - mrsh-ohpc
+        - mrsh-rsh-compat-ohpc
+        - mrsh-server-ohpc
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false

@@ -25,9 +25,10 @@
 # ------------------------------------------------------------
 #yum -y groupinstall ohpc-base
 - name: Install ohpc-base
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-base
+  yum:
+    state: latest
+    name:
+      - ohpc-base
   when:
     ( inventory_hostname in groups[nt_sms] ) or
     ( inventory_hostname in groups[nt_devnodes] ) or
@@ -35,17 +36,20 @@
 
 #yum -y --installroot=$CHROOT groupinstall ohpc-base-compute
 - name: Install ohpc-base-compute for computing node images on master
-  yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-  with_items:
-    - ohpc-base-compute
+  yum:
+    state: latest
+    installroot: "{{ compute_chroot_loc }}"
+    name:
+      - ohpc-base-compute
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
 - name: Install ohpc-base-compute on computing nodes
-  yum: name={{ item }} state=latest
-  with_items:
-    - ohpc-base-compute
+  yum:
+    state: latest
+    name:
+      - ohpc-base-compute
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false

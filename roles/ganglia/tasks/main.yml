@@ -23,25 +23,29 @@
 #     # Install Ganglia on master
 #     yum -y groupinstall ohpc-ganglia
   - name: Install ohpc-ganglia on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - ohpc-ganglia
+    yum:
+      state: latest
+      name:
+        - ohpc-ganglia
     when:
       - inventory_hostname in groups[nt_sms]
 
 #     yum -y --installroot=$CHROOT install ganglia-gmond-ohpc
   - name: Install ganglia-gmond-ohpc for computing image on master
-    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - ganglia-gmond-ohpc
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - ganglia-gmond-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
       - enable_warewulf == true
 
   - name: Install ganglia-gmond-ohpc on a computing node
-    yum: name={{ item }} state=latest
-    with_items:
-      - ganglia-gmond-ohpc
+    yum:
+      state: latest
+      name:
+        - ganglia-gmond-ohpc
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false

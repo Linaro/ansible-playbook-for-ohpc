@@ -28,23 +28,26 @@
 #     yum -y groupinstall ohpc-python-libs-intel
 #     yum -y groupinstall ohpc-runtimes-intel
   - name: Install Development libraries for use with Intel Parallel Studio on master and a development node
-    yum: name={{ item }} state=latest
-    with_items:
-      - ohpc-serial-libs-intel
-      - ohpc-io-libs-intel
-      - ohpc-python-libs-intel
-      - ohpc-runtimes-intel
+    yum:
+      state: latest
+      name:
+        - ohpc-serial-libs-intel
+        - ohpc-io-libs-intel
+        - ohpc-python-libs-intel
+        - ohpc-runtimes-intel
     when:
       ( inventory_hostname in groups[nt_devnodes] ) or
       ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )  
 
   - name: Install Development libraries for use with Intel Parallel Studio for a computing image on master
-    yum: name={{ item }} installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - ohpc-serial-libs-intel
-      - ohpc-io-libs-intel
-      - ohpc-python-libs-intel
-      - ohpc-runtimes-intel
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - ohpc-serial-libs-intel
+        - ohpc-io-libs-intel
+        - ohpc-python-libs-intel
+        - ohpc-runtimes-intel
     when:
       - inventory_hostname in groups[nt_sms] 
       - enable_warewulf == true 

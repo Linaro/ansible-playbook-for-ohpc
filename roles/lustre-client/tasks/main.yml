@@ -25,29 +25,33 @@
 #     # Install Lustre client on master
 #     yum -y install lustre-client-ohpc lustre-client-ohpc-modules
   - name: install Lustre client on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - lustre-client-ohpc
-      - lustre-client-ohpc-modules
+    yum:
+      state: latest
+      name:
+        - lustre-client-ohpc
+        - lustre-client-ohpc-modules
     when:
       - inventory_hostname in groups[nt_sms]
 
 #     # Enable lustre in a computing node
 #     yum -y --installroot=$CHROOT install lustre-client-ohpc lustre-client-ohpc-modules
   - name: Install Lustre-client for computing node images on master
-    yum: name={{ item }}  installroot="{{ compute_chroot_loc }}" state=latest
-    with_items:
-      - lustre-client-ohpc
-      - lustre-client-ohpc-modules
+    yum:
+      state: latest
+      installroot: "{{ compute_chroot_loc }}"
+      name:
+        - lustre-client-ohpc
+        - lustre-client-ohpc-modules
     when:
       - inventory_hostname in groups[nt_sms]
       - enable_warewulf == true
 
   - name: Install Lustre-client on a computing node
-    yum: name={{ item }}  state=latest
-    with_items:
-      - lustre-client-ohpc
-      - lustre-client-ohpc-modules
+    yum:
+      state: latest
+      name:
+        - lustre-client-ohpc
+        - lustre-client-ohpc-modules
     when:
       - inventory_hostname in groups[nt_cnodes]
       - enable_warewulf == false

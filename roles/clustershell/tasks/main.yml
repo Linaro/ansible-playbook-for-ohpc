@@ -25,9 +25,10 @@
 #     # Install clustershell
 #     yum -y install clustershell-ohpc
   - name: Install clustershell on master
-    yum: name={{ item }} state=latest
-    with_items:
-      - clustershell-ohpc
+    yum:
+      state: latest
+      name:
+        - clustershell-ohpc
     when:
       - inventory_hostname in groups[nt_sms]
 
