@@ -144,17 +144,9 @@
 # SSH Settings for the computing cluster between sms and computing nodes.
 # It will be used by psdsh, mrsh and so on.
 #
-- name: Touch /root/.ssh/config file
-  file:
-    path: "{{ ansible_env.HOME }}/.ssh/config"
-    state: touch
-  when:
-    ( inventory_hostname in groups[nt_sms] ) or
-    ( inventory_hostname in groups[nt_devnodes] ) or
-    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
-
 - name: "Add the ssh configurations for root login to cnodes and sms"
   blockinfile:
+    create: yes
     dest: "{{ ansible_env.HOME }}/.ssh/config"
     content:
       "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\n"
@@ -165,6 +157,7 @@
 
 - name: "Add the ssh configurations for ansible user login to cnodes and sms"
   blockinfile:
+    create: yes
     dest: "{{ ansible_home }}/.ssh/config"
     content:
       "Host {{ compute_regex }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\nHost {{ sms_name }}\n{{'\t'}}StrictHostKeyChecking no\n{{'\t'}}UserKnownHostsFile /dev/null\n"
