@@ -91,7 +91,13 @@
 
     - name: Dump MOFED Install log
       debug: var=result
- 
+
+    - name: Restart and enable Openibd
+      service:
+        name: openibd
+        enabled: yes
+        state: started
+
 # sleep 2 && shutdown -r now   
     - name: restart sms machine
       shell: sleep 2 && shutdown -r now
@@ -113,11 +119,9 @@
   when:
     - enable_mellanox_ib == true
 
-# Optionally enable opensm subnet manager
-#if [[ ${enable_opensm} -eq 1 ]];then
+# Optionally enable opensm subnet manager for Mellanox OFED
 - block:
 
-#     yum -y install opensm
   - name: Install opensm on master
     yum: name={{ item }} state=latest
     with_items:
@@ -130,18 +134,15 @@
       create: yes
     when: enable_socket_direct == true
 
-#     systemctl enable opensm
   - name: Enable opensm on master
-    service: name=opensm enabled=yes
-
-#     systemctl start opensm
-  - name: Start opensm on master
-    service: name=opensm state=started
+    service: 
+      name: opensmd 
+      enabled: yes
+      state: started
 
   when:
     - enable_opensm == true
     - inventory_hostname in groups[nt_sms]
-#fi
 
 #if [[ ${enable_ipoib} -eq 1 ]];then
 - block:
@@ -279,6 +280,12 @@
       when:
         - inventory_hostname in groups[nt_cnodes]
         - enable_warewulf == false
+
+    - name: Restart and enable Openibd
+      service:
+        name: openibd
+        enabled: yes
+        state: started
 
 # sleep 2 && shutdown -r now
     - name: restart computing node machine
