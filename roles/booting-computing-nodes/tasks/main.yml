@@ -20,3 +20,6 @@
 #roles/booting-computing-nodes/tasks/main.yml
 #
 
+
+- include_tasks: mrp.yml
+  when: using_mr_provisioner == true

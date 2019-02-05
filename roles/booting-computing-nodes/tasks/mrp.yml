@@ -1,0 +1,42 @@
+---
+
+# This file is distributed under the Apache License (the
+# "License"); you may not use this file except in compliance
+# with the License.  See the LICENSE file distributed with 
+# this work for additional information regarding copyright
+# ownership. 
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# This file is derived from recipe.sh in OpenHPC distribution 
+# and ported by Linaro Ltd. and Fujitsu Ltd.
+
+#
+#roles/booting-computing-nodes/tasks/mrp.yml
+#
+
+- name: Get the client
+  git:
+    repo: 'https://github.com/Linaro/mr-provisioner-client.git'
+    dest: "{{ role_path }}"
+    update: yes
+    force: yes
+  delegate_to: localhost
+
+- name: Provision with localhost
+  shell: "{{ role_path }}/mr-provisioner-client/mrp_client.py --mrp-url={{ mr_provisioner_url | quote }} --mrp-token={{ mr_provisioner_token | quote }} state --action provision --machine {{ item.name | quote }}" 
+  with_items:
+    - "{{ mr_provisioner_machines }}"
+  delegate_to: localhost
+
+- name: Wait for host for 3600 seconds, but only start checking after sixty sec
+  wait_for_connection:
+          delay: 60
+          timeout: 3600
+  when: 
+      - inventory_hostname in groups[nt_cnodes]
