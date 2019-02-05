@@ -286,6 +286,8 @@ The following are the configuration variables with their default values. You can
    max DHCP lease time.
  - num_computes
    Number of CNs.
+ - using_mr_provisioner: true/false (default: false)
+   In the booting_computing_nodes role, one can use mr_provisioner to reboot the nodes. If so, please refer to the section below for more configuration variables.
  - compute_regex and compute_prefix
    regex and prefix letters that match hostnames of CNs. They are used by Slurm.
  - compute_nodes
@@ -368,6 +370,23 @@ Ansible provides a feature called Roles, which are a compartmentalization unit t
 
     - kargs
       Sets up kargs for TFTP boot kernels
+
+1. roles/booting-computing-nodes/defaults/main.yml
+
+    - mr_provisioner_client_path
+      Path to the client on the local Ansible controller
+
+    - mr_provisioner_url
+      The URL of the MrProvisioner server
+
+    - mr_provisioner_token
+      The token to authenticate with the MrP server
+
+    - mr_provisioner_client_user
+      The user with which to execute the MrP client program on the local Ansible controller
+
+    - mr_provisioner_machines
+      A list of the computing nodes' names in MrP so as to PXE reboot them
 
 ##  Run this playbook
 

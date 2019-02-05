@@ -4,3 +4,10 @@
 #roles/booting-computing-nodes/defaults/main.yml
 #
 
+using_mr_provisioner: False
+mr_provisioner_client_user: mrp_user
+mr_provisioner_client_path: "{{ playbook_dir }}"
+mr_provisioner_url: http://mrp.example.com:5000
+mr_provisioner_token: 'placeholdertoken'
+mr_provisioner_machines:
+- placeholdermachine

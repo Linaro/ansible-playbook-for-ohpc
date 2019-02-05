@@ -17,8 +17,21 @@
 # and ported by Linaro Ltd. and Fujitsu Ltd.
 
 #
-#roles/booting-computing-nodes/tasks/main.yml
+#roles/booting-computing-nodes/tasks/mrp.yml
 #
 
-- include_tasks: mrp.yml
-  when: using_mr_provisioner == true
+- name: Provision with localhost
+  shell: "{{ mr_provisioner_client_path }}/mr-provisioner-client/mrp_client.py --mrp-url={{ mr_provisioner_url | quote }} --mrp-token={{ mr_provisioner_token | quote }} state --action provision --machine {{ item.name | quote }}" 
+  with_items:
+    - "{{ mr_provisioner_machines }}"
+  delegate_to: localhost
+  become: yes
+  become_user: "{{ mr_provisioner_client_user }}"
+  become_method: su
+
+- name: Wait for host for 3600 seconds, but only start checking after sixty sec
+  wait_for_connection:
+          delay: 60
+          timeout: 3600
+  when: 
+      - inventory_hostname in groups[nt_cnodes]

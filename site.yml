@@ -86,6 +86,6 @@
     - third-party-libs-intel
     - imb
     - warewulf-final
-    # - booting-computing-nodes
+    - booting-computing-nodes
     - final 
     - helloworld
