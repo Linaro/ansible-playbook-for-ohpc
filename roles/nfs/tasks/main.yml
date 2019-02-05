@@ -79,6 +79,7 @@
   service: name=nfs state=restarted
   when:
     - inventory_hostname in groups[nt_cnodes]
+    - enable_warewulf == false
 
 #systemctl enable nfs-server
 - name: enable nfs server on master
