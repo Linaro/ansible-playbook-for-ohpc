@@ -60,6 +60,7 @@
       shell: cd /home/ohpc-test/tests && make check
       environment:
         BATS_JUNIT_FORMAT: "1"
+        BATS_ENABLE_TIMING: "1"
       become: yes
       become_user: ohpc-test
       become_method: su
