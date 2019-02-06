@@ -221,14 +221,6 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
-- name: "Remove /etc/sysconfig/network on a computing node to create it newly on a computing node"
-  file:
-    state: absent
-    path: /etc/sysconfig/network
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
- 
 # for ((i=0; i<$num_computes; i++)) ; do
 #    wwsh -y node new ${c_name[i]} --ipaddr=${c_ip[i]} --hwaddr=${c_mac[i]} -D ${eth_provision}
 # done
