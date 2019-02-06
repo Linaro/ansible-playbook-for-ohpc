@@ -45,3 +45,9 @@
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
+
+- name: Source the lmod-defaults
+  shell: "module load ohpc"
+  when: 
+    ( inventory_hostname in groups[ nt_devnodes ] ) or
+    ( ( inventory_hostname in groups[nt_cnodes] ) and ( enable_warewulf == false ) )
