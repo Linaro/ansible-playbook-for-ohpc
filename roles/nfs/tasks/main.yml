@@ -36,12 +36,41 @@
 - name: Add NFS client to mount /opt/ohpc/pub on a computing node
   mount:
     name: "/opt/ohpc/pub"
-    src: "{{sms_ip}}{{ d_colon }}/opt/ohpc/pub"
+    src: "{{ sms_ip }}{{ d_colon }}/opt/ohpc/pub"
     fstype: nfs
     state: present
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_nfs_ohpc == true
+
+#echo "${sms_ip}:/home /home nfs nfsvers=3,rsize=1024,wsize=1024,cto 0 0" >> $CHROOT/etc/fstab
+- name: Add NFS client to mount /home on a computing node
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/fstab"
+    state: present
+    backrefs: no
+    regexp: '^{{ sms_ip }}{{ d_colon }}/home /home nfs nfsvers=3,rsize=1024,wsize=1024,cto 0 0$'
+    line: "{{ sms_ip }}{{ d_colon }}/home /home nfs nfsvers=3,rsize=1024,wsize=1024,cto 0 0"
+    create: yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_nfs_home == true
+    - enable_warewulf == true
+
+#echo "${sms_ip}:/opt/ohpc/pub /opt/ohpc/pub nfs nfsvers=3 0 0" >> $CHROOT/etc/fstab
+- name: Add NFS client to mount /opt/ohpc/pub on a computing node
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/etc/fstab"
+    state: present
+    backrefs: no
+    regexp: '^{{ sms_ip }}{{ d_colon }}/opt/ohpc/pub /opt/ohpc/pub nfs nfsvers=3 0 0$'
+    line: "{{ sms_ip }}{{ d_colon }}/opt/ohpc/pub /opt/ohpc/pub nfs nfsvers=3 0 0"
+    insertafter: EOF
+    create: yes
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_nfs_ohpc == true
+    - enable_warewulf == true
 
 #echo "/home *(rw,no_subtree_check,fsid=10,no_root_squash)" >> /etc/exports
 - name: Export /home on master
@@ -51,6 +80,7 @@
     backrefs: no
     regexp: '^/home \*\(rw,no_subtree_check,fsid=10,no_root_squash\)$'
     line: "/home *(rw,no_subtree_check,fsid=10,no_root_squash)"
+    insertafter: EOF
   when:
     - inventory_hostname in groups[nt_sms]
 
