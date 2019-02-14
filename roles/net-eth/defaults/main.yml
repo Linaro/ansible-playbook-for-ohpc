@@ -4,3 +4,8 @@
 #roles/net-eth/defaults/main.yml
 #
 
+enable_net_eth: False
+list_cnodes_interface:
+- { interface: placeholder }
+cnode_gateway: 'mygateway'
+cnode_gateway_interface: 'mygatewayinterface'

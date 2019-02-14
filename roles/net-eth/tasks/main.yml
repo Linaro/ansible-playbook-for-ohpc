@@ -29,26 +29,41 @@
 #        we should use command module instead for now.
 #
 
-#- block:
-#    - name: Create an ifcfg file on master
-#      template:
-  #        src: ifcfg-ethN-sms
-  #      dest: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_eth_internal }}"
-  #
-  # - name: "Make {{ sms_eth_internal }} down on master"
-  #   command: "ifdown {{ sms_eth_internal }}"
-  #   register: result
-  #   failed_when: result.rc not in [0]
-  #
-  # - name: "Make {{ sms_eth_internal }} up on master"
-  #   command: "ifup {{ sms_eth_internal }}"
-  #   register: result
-  #   failed_when: result.rc not in [0]
-      
-  # when:
-    # - inventory_hostname in groups[ nt_sms ]
-    #-# enable_ifup == true
+- block:
 
+    - name: Create an ifcfg file on master
+      template:
+        src: ifcfg-ethN-sms
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ sms_eth_internal }}"
+
+    - name: "Make {{ sms_eth_internal }} down on master"
+      command: "ifdown {{ sms_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+
+    - name: "Make {{ sms_eth_internal }} up on master"
+      command: "ifup {{ sms_eth_internal }}"
+      register: result
+      failed_when: result.rc not in [0]
+      
+  when:
+   - inventory_hostname in groups[ nt_sms ]
+   - enable_ifup == true
+   - enable_net_eth == true
+
+- block:
+
+  - name: Create ifcfg file(s) in chroot
+    template:
+      src: ifcfg-ethN-cnode
+      dest: "{{ compute_chroot_loc }}/etc/sysconfig/network-scripts/ifcfg-{{ item.interface }}"
+    with_items:
+      - "{{ list_cnodes_interface }}"
+
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+    - enable_net_eth == true
 #
 # Create and make ethernet device on the computing node up
 #

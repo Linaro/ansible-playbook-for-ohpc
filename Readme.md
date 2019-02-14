@@ -271,6 +271,8 @@ The following are the configuration variables with their default values. You can
    Enables dhcpd on SMS for CNs if true. Must be set false if you use Warewulf or have already configured SMS to run dhcpd.
  - enable_ifup: true/false  (default: false)
    \[Not fully tested; feedback welcome\] Sets up Ethernet devices in the Computing Network if true. Must be set false if you have already set up Ethernet for CNs.
+ - enable_net_eth: true/false (default: false)
+   Sets up the sms_eth_internal provisioning Ethernet interface (combined with enable_ifup) and sets up the Ethernet interface(s) in the CNs chroot (Warewulf only at the moment), forcing the gateway and DEFROUTE but setting all the interfaces to DHCP (PR welcome for static !)
  - enable_warewulf: true/false  (default: false)
    Enables Warewulf if true.
  - enable_nfs_ohpc: true/false  (default: false)
@@ -387,6 +389,17 @@ Ansible provides a feature called Roles, which are a compartmentalization unit t
 
     - mr_provisioner_machines
       A list of the computing nodes' names in MrP so as to PXE reboot them
+
+1. roles/net-eth/defaults/main.yml
+
+    - cnode_gateway
+      The IP of the gateway the cnode should be using
+
+    - cnode_gateway_interface
+      The CN's interface on which is the gateway (if at all)
+
+    - list_cnodes_interface
+      The list of interfaces in each CN to create an ifcfg file for
 
 ##  Run this playbook
 

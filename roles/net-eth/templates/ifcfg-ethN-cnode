@@ -1,7 +1,13 @@
 #
-#network:  {{internal_network}}
+#network:  {{ item.interface }}
 #
-DEVICE={{ cnode_eth_internal }}
+DEVICE={{ item.interface }}
 BOOTPROTO=dhcp
+{% if item.interface == cnode_gateway_interface %}
+DEFROUTE=yes
+GATEWAY={{ cnode_gateway }}
+{% else %}
+DEFROUTE=no
+{% endif %}
 ONBOOT=yes
 NM_CONTROLLED=no
