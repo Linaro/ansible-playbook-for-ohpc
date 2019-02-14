@@ -89,5 +89,17 @@
   lineinfile:
     path: "{{ ansible_home }}/.bashrc"
     regexp: '^export PDSH_SSH_ARGS_APPEND=.*$'
-    line: 'export PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /root/.ssh/cluster.pub"'
+    line: 'export PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /root/.ssh/cluster"'
     state: present
+  when:
+    - inventory_hostname in groups[nt_sms]
+
+- name: Configure PDSH in bash.rc
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/{{ ansible_home }}/.bashrc"
+    regexp: '^export PDSH_SSH_ARGS_APPEND=.*$'
+    line: 'export PDSH_SSH_ARGS_APPEND="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /root/.ssh/cluster"'
+    state: present
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
