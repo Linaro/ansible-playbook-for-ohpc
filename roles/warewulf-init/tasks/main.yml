@@ -90,8 +90,6 @@
 
   - name: Touch ~/.bashrc on master
     file: path="{{ ansible_home }}/.bashrc" state=touch
-    when:
-      - enable_warewulf == true
 
   - name: "Add environment variable export CHROOT={{compute_chroot_loc}} on master"
     lineinfile:
@@ -100,15 +98,13 @@
       backrefs: no
       regexp: '^export CHROOT="{{ compute_chroot_loc }}$'
       line: 'export CHROOT="{{ compute_chroot_loc }}"'
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
 
 #wwmkchroot centos-7 $CHROOT
-- name: Build initial chroot image on master
-  command: wwmkchroot centos-7 "{{ compute_chroot_loc }}"
-  register: result
-  failed_when: result.rc not in [0, 1]
+  - name: Build initial chroot image on master
+    command: wwmkchroot centos-7 "{{ compute_chroot_loc }}"
+    register: result
+    failed_when: result.rc not in [0, 1]
+
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
@@ -214,3 +210,22 @@
   when:
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
+
+# stateless
+- name: Add cluster.pub to authorized_keys on a computing node
+  lineinfile:
+    path: "{{ compute_chroot_loc }}/root/.ssh/authorized_keys"
+    state: present
+    backrefs: no
+    create: yes
+    line: "{{ lookup('file', '{{ role_path }}/cluster.pub') }}"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Compute and master have the same authorized_keys
+  shell: cp "/root/.ssh/authorized_keys" "{{ compute_chroot_loc }}/root/.ssh/authorized_keys"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+    - share_authorized_keys == true

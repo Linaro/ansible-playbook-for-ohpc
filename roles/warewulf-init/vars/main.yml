@@ -14,3 +14,5 @@ compute_chroot_loc: "/opt/ohpc/admin/images/{{ compute_chroot }}"
 # additional arguments to enable optional arguments for bootstrap kernel
 kargs: "acpi_pad.disable=1"
 
+# WW provisioned CNs have the same authorized_keys file as the sms when this is true
+share_authorized_keys: False
