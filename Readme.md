@@ -359,7 +359,7 @@ Ansible provides a feature called Roles, which are a compartmentalization unit t
     - ntp_server
       NTP server for the whole cluster
 
-1. roles/warewulf/vars/main.yml
+1. roles/warewulf-init/vars/main.yml
 
     - provision_wait
       Delay time to ensure completion of provisioning (unit: seconds)
@@ -372,6 +372,14 @@ Ansible provides a feature called Roles, which are a compartmentalization unit t
 
     - kargs
       Sets up kargs for TFTP boot kernels
+
+1. roles/warewulf-final/vars/main.yml
+
+    - enable_biosdevname true/false (default: False)
+      Forces the CNs to use the bios names for the NICs instead of "ethX"
+
+    - cnode_console
+      The serial console to be used at boot, default is tty0,115200 (format is important)
 
 1. roles/booting-computing-nodes/defaults/main.yml
 

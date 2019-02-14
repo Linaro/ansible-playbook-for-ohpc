@@ -141,6 +141,30 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
+- name: Add firmware += qede/* to /etc/warewulf/bootstrap.conf on master
+  lineinfile:
+    path: /etc/warewulf/bootstrap.conf
+    state: present
+    backrefs: no
+    insertafter: '^firmware\S+\+=.*$'
+    regexp: '^firmware \+= qede\/\*$'
+    line: "firmware += qede/*, qed/*"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Add firmware += qede/* to /etc/warewulf/bootstrap.conf on master
+  lineinfile:
+    path: /etc/warewulf/bootstrap.conf
+    state: present
+    backrefs: no
+    insertbefore: '^drivers\S+\+=.*$'
+    regexp: '^drivers \+\= kernel\/drivers\/net\/ethernet\/qlogic\/qede\/$'
+    line: "drivers += kernel/drivers/net/ethernet/qlogic/qede/, qede"
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
 # Add additional modules that should be loaded by modprobe
 - name: Add modprobe additional_modules to WW_CONF
   lineinfile:
@@ -174,29 +198,33 @@
     - enable_warewulf == true
 
 # # Add hosts to cluster
-# echo "GATEWAYDEV=${eth_provision}" > /tmp/network.$$
-- name: Create temporary file for /etc/sysconfig/network on master
-  tempfile:
-    state: file
-  register: resfile
+- name: "Set default gateway {{ internal_gateway }} on master"
+  lineinfile:
+    path: "{{ ansible_home }}/netconfig"
+    state: present
+    backrefs: no
+    regexp: '^GATEWAYDEV={{ gateway_dev }}$'
+    line: "GATEWAYDEV={{ gateway_dev }}"
+    create: yes
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
 - name: "Set default gateway {{ internal_gateway }} on master"
   lineinfile:
-    path: "{{ resfile.path }}"
+    path: "{{ ansible_home }}/netconfig"
     state: present
     backrefs: no
-    regexp: '^GATEWAYDEV={{ eth_provision }}$'
-    line: "GATEWAYDEV={{ eth_provision }}"
+    regexp: '^GATEWAY={{ internal_gateway }}$'
+    line: "GATEWAY={{ internal_gateway }}"
+    create: yes
   when:
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
 # wwsh -y file import /tmp/network.$$ --name network
-- name: "Execute wwsh -y file import {{ resfile.path }} --name network on master"
-  shell: wwsh -y file import "{{ resfile.path }}" --name network
+- name: "Execute wwsh -y file import {{ ansible_home }}/netconfig --name network on master"
+  shell: wwsh -y file import "{{ ansible_home }}/netconfig" --name network
   register: result
   failed_when: result.rc not in [0]
   when:
@@ -212,23 +240,6 @@
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
 
-#Remove tempfile
-- name: "Remove the temporary file for network on master"
-  file:
-    state: absent
-    path: "{{ resfile.path }}"
-  when:
-    - inventory_hostname in groups[nt_sms]
-    - enable_warewulf == true
-
-- name: "Remove /etc/sysconfig/network on a computing node to create it newly on a computing node"
-  file:
-    state: absent
-    path: /etc/sysconfig/network
-  when:
-    - inventory_hostname in groups[nt_cnodes]
-    - enable_warewulf == false
- 
 # for ((i=0; i<$num_computes; i++)) ; do
 #    wwsh -y node new ${c_name[i]} --ipaddr=${c_ip[i]} --hwaddr=${c_mac[i]} -D ${eth_provision}
 # done
@@ -300,6 +311,23 @@
     - inventory_hostname in groups[nt_cnodes]
     - enable_warewulf == false
 
+- name: Execute wwsh -y provision set {{ compute_regex }} console={{ cnode_console }} on master
+  shell: "wwsh -y provision set {{ compute_regex }} console={{ cnode_console }}"
+  register: result
+  failed_when: result.rc not in [0, 1]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+
+- name: Execute wwsh -y provision set {{ compute_regex }} console=tty0,115200 on master
+  shell: wwsh -y provision set --postnetdown=1 "{{ compute_regex }}" --kargs "{{ kargs }} net.ifnames=1,biosdevname=1"
+  register: result
+  failed_when: result.rc not in [0, 1]
+  when:
+    - inventory_hostname in groups[nt_sms]
+    - enable_warewulf == true
+    - enable_biosdevname == true
+
 #systemctl restart dhcpd
 - name: Start dhcpd on master
   service: name=dhcpd state=restarted
@@ -320,8 +348,8 @@
 #if [[ ${enable_ipmisol} -eq 1 ]];then
 - block:
 #     wwsh -y provision set "${compute_regex}" --kargs "${kargs} console=ttyS1,115200"
-  - name: Execute wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200 on master
-    shell: "wwsh -y provision set {{ compute_regex }} --kargs {{ kargs }} console=ttyS1,115200"
+  - name: Execute wwsh -y provision set {{ compute_regex }} console={{ cnode_console }} on master
+    shell: "wwsh -y provision set {{ compute_regex }} console={{ cnode_console }}"
     register: result
     failed_when: result.rc not in [0]
     when:

@@ -4,3 +4,5 @@
 #roles/warewulf/defaults/main.yml
 #
 
+using_biosdevname: False
+cnode_console: tty0,115200
