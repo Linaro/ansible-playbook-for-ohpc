@@ -81,7 +81,14 @@
     replace: dest=/etc/slurm/slurm.conf regexp='^FastSchedule=(\d+)' replace="FastSchedule=0" backup=yes
 
   - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
-    replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
+    replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default | default("none") }}" backup=yes
+    when:
+      - ansible_machine != "aarch64"
+
+  - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
+    replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default | default("pmix") }}" backup=yes
+    when:
+      - ansible_machine == "aarch64"
 
   - name: replace ReturnToService
     replace: dest="/etc/slurm/slurm.conf" regexp='ReturnToService=1' replace="ReturnToService=2" backup=yes
@@ -89,9 +96,7 @@
       - force_service == True
 
   when: 
-    ( ( inventory_hostname in groups[nt_sms] ) or
-    ( inventory_hostname in groups[nt_devnodes] ) or
-    ( inventory_hostname in groups[nt_cnodes] ) ) and ( enable_warewulf == false )
+    - inventory_hostname in groups[nt_sms] or inventory_hostname in groups[nt_devnodes] or ( inventory_hostname in groups[nt_cnodes] and enable_warewulf == false )
 
 - block:
   - name: Identify resource manager hostname on master
@@ -110,7 +115,14 @@
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^FastSchedule=(\d+)' replace="FastSchedule=0" backup=yes
 
   - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
-    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default }}" backup=yes
+    replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default | default("none") }}" backup=yes
+    when:
+      - ansible_machine != "aarch64"
+
+  - name: Set MpiDefault default is none/up to the implementation (fails on aarch64)
+    replace: dest=/etc/slurm/slurm.conf regexp='^MpiDefault=(\S+)' replace="MpiDefault={{ slurm_mpi_default | default("pmix") }}" backup=yes
+    when:
+      - ansible_machine == "aarch64"
 
   - name: replace ReturnToService
     replace: dest="{{ compute_chroot_loc }}/etc/slurm/slurm.conf" regexp='ReturnToService=1' replace="ReturnToService=2" backup=yes
@@ -120,7 +132,6 @@
   when: 
     - inventory_hostname in groups[nt_sms]
     - enable_warewulf == true
-    - ansible_machine != "aarch64"
 
 # Note: In typical cases we run this playbook on sms as normal user.
 # We should change the file/directory mode before copying it.
