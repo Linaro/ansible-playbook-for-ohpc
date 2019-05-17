@@ -49,6 +49,8 @@ configure_packages:
     status: disable
   - name: R
     status: disable
+  - name: singularity
+    status: disable
   - name: scotch
     status: disable
   - name: slepc
