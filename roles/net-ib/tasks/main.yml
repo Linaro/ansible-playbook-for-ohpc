@@ -44,23 +44,8 @@
     - enable_linux_ib == true
 
 - block:
-    - name: download mellanox iso image faile
-      get_url: url={{ mellanox_iso_url }} dest=/tmp
-      when:
-        - inventory_hostname in groups[nt_sms]
-
-    - name: mount mellanox iso image on master
-      mount:
-        name: "/mnt/mlnx" 
-        src: /tmp/{{ mellanox_iso_file }}
-        fstype: iso9660
-        opts: ro,loop
-        state: mounted
-      when:
-        - inventory_hostname in groups[nt_sms]
-
 #yum install required packages for installing MLNX_OFED_LINUX on master
-    - name: Install  on master
+    - name: Install on master
       yum:
         state: latest
         name:
@@ -80,16 +65,56 @@
           - libxml2-python
           - tcsh
           - tcl
+          - createrepo
       when:
         - inventory_hostname in groups[nt_sms]
 
-#./mnt/mlnxofedinstall --all  --force
-    - name: run a script "/mnt/mlnxofedinstall --force" on master
-      shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}"
-      register: result
-      failed_when: result.rc not in [0]
+    - name: download mellanox iso image
+      get_url: url={{ mellanox_iso_url }} dest=/tmp
       when:
         - inventory_hostname in groups[nt_sms]
+
+    - block:
+            - name: mount mellanox iso image on master
+              mount:
+                name: "/mnt/mlnx" 
+                src: /tmp/{{ mellanox_iso_file }}
+                fstype: iso9660
+                opts: ro,loop
+                state: mounted
+              when:
+                - inventory_hostname in groups[nt_sms]
+
+            #./mnt/mlnxofedinstall --all  --force
+            - name: run a script "/mnt/mlnxofedinstall --force" on master
+              shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}"
+              register: result
+              failed_when: result.rc not in [0]
+              when:
+                - inventory_hostname in groups[nt_sms]
+      when:
+        - mellanox_iso_file.find(".iso") != -1
+
+    - block:
+            - name: make dir for decompression
+              file:
+                state: directory
+                dest: /tmp/MLNX
+
+            - name: untar mellanox tgz image
+              shell: "tar -C /tmp/MLNX -xf /tmp/{{ mellanox_iso_file }}"
+              when:
+                - inventory_hostname in groups[nt_sms]
+
+            #./mnt/mlnxofedinstall --all  --force
+            - name: run a script "/tmp/MLNX/mlnxofedinstall --force" on master
+              shell: "/tmp/MLNX/{{ mellanox_iso_file.split('.tgz')[0] }}/mlnxofedinstall --force {{ mofed_install_opts }}"
+              register: result
+              failed_when: result.rc not in [0]
+              when:
+                - inventory_hostname in groups[nt_sms]
+      when:
+        - mellanox_iso_file.find(".tgz") != -1
 
     - name: Dump MOFED Install log
       debug: var=result
@@ -231,6 +256,82 @@
     - enable_linux_ib == true  
 
 - block:
+#yum install pciutils lsof gtk2 atk gcc-gfortran tk
+    - name: Install required packages for installing MLNX_OFED_LINUX on computing node
+      yum:
+        state: latest
+        name:
+          - pciutils
+          - lsof
+          - gtk2
+          - atk
+          - gcc-gfortran
+          - tk
+          - python-devel
+          - pciutils
+          - make
+          - kernel-devel
+          - redhat-rpm-config
+          - rpm-build
+          - gcc
+          - libxml2-python
+          - tcsh
+          - tcl
+          - createrepo
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false
+
+    - name: download mellanox iso image faile on computing node
+      get_url: url={{ mellanox_iso_url }} dest=/tmp
+      when:
+        - inventory_hostname in groups[nt_cnodes]
+        - enable_warewulf == false
+
+    - block:
+            - name: mount mellanox iso image on master
+              mount:
+                name: "/mnt/mlnx" 
+                src: /tmp/{{ mellanox_iso_file }}
+                fstype: iso9660
+                opts: ro,loop
+                state: mounted
+              when:
+                - inventory_hostname in groups[nt_cnodes]
+
+            #./mnt/mlnxofedinstall --all  --force
+            - name: run a script "/mnt/mlnxofedinstall --force" on master
+              shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}"
+              register: result
+              failed_when: result.rc not in [0]
+              when:
+                - inventory_hostname in groups[nt_cnodes]
+      when:
+        - mellanox_iso_file.find(".iso") != -1
+        - enable_warewulf == false
+
+    - block:
+            - name: make dir for decompression
+              file:
+                state: directory
+                dest: /tmp/MLNX
+
+            - name: untar mellanox tgz image
+              shell: "tar -C /tmp/MLNX -xf /tmp/{{ mellanox_iso_file }}"
+              when:
+                - inventory_hostname in groups[nt_cnodes]
+
+            #./mnt/mlnxofedinstall --all  --force
+            - name: run a script "/tmp/MLNX/mlnxofedinstall --force" on master
+              shell: "/tmp/MLNX/{{ mellanox_iso_file.split('.tgz')[0] }}/mlnxofedinstall --force {{ mofed_install_opts }}"
+              register: result
+              failed_when: result.rc not in [0]
+              when:
+                - inventory_hostname in groups[nt_cnodes]
+      when:
+        - mellanox_iso_file.find(".tgz") != -1
+        - enable_warewulf == false
+
     - name: mount mellanox iso image to computing node images on master
       mount:
         name: "{{ compute_chroot_loc }}/mnt/mlnx"
@@ -249,46 +350,6 @@
       when:
         - inventory_hostname in groups[nt_sms]
         - enable_warewulf == true
-
-    - name: download mellanox iso image faile on computing node
-      get_url: url={{ mellanox_iso_url }} dest=/tmp
-      when:
-        - inventory_hostname in groups[nt_cnodes]
-        - enable_warewulf == false
-
-    - name: mount mellanox iso image on computing node
-      mount:
-        name: "/mnt/mlnx"
-        src: /tmp/{{ mellanox_iso_file }}
-        fstype: iso9660
-        opts: ro,loop
-        state: mounted
-      when:
-        - inventory_hostname in groups[nt_cnodes]
-        - enable_warewulf == false        
-
-#yum install pciutils lsof gtk2 atk gcc-gfortran tk
-    - name: Install required packages for installing MLNX_OFED_LINUX on computing node
-      yum:
-        state: latest
-        name:
-          - pciutils
-          - lsof
-          - gtk2
-          - atk
-          - gcc-gfortran
-          - tk
-      when:
-        - inventory_hostname in groups[nt_cnodes]
-        - enable_warewulf == false
-
-    - name: run a script "/mnt/mlnxofedinstall --force" on computing node
-      shell: "/mnt/mlnx/mlnxofedinstall --force {{ mofed_install_opts }}" 
-      register: result
-      failed_when: result.rc not in [0]
-      when:
-        - inventory_hostname in groups[nt_cnodes]
-        - enable_warewulf == false
 
     - name: Restart and enable Openibd
       service:
